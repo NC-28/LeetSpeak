@@ -8,7 +8,7 @@ export default defineConfig({
                               build: {
                                 rollupOptions: {
                                   input: {
-                                    popup: "popup.html",
+                                    popup: "./popup.html",
                                     background: "src/background/index.js",
                                     contentScript: "src/contentScript/index.js",  // ✅ Must match file path
                                   },

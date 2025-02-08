@@ -15,9 +15,10 @@
       <style> body { width: 300px; font-family: Arial, sans-serif; } </style>
   </head>
   <body>
-  <h3>Scraped Content:</h3>
-  <pre id="output"></pre>
-  <script type="module" src="src/permissions/requestPermission.js"></script>
-  <!--  <script src="src/popup/Webscraping.js"></script>-->
+    <h3>LeetCode Editor Content</h3>
+    <pre id="editorContent">Loading...</pre>  <!-- Make sure this element exists -->
+    <pre id="output">Loading...</pre>
+    <script src="src/popup/Webscraping.js"></script>
+    <script type="module" src="src/permissions/requestPermission.js"></script>
   </body>
 </html>

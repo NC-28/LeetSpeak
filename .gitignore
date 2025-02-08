@@ -1,4 +1,6 @@
-/node_modules
 .DS_Store
 .env
+/frontend/dist
+/frontend/node_modules
+/node_modules
 /dist
