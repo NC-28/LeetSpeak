@@ -5,15 +5,19 @@ import json
 
 async def handler(websocket, path, hume_handler):
     print("scrape handler called")
+    count = 0
     async for message in websocket:
         data = json.loads(message)
         if data["type"] == "editor_update":
             print("\n[Editor Update]\n", data["content"])
             # Pass the update to the shared hume_handler
-            hume_handler.handle_editor_update(data["content"])
+            await hume_handler.handle_editor_update(data["content"])
         elif data["type"] == "description_update":
             print("\n[Description Update]\n", data["content"])
-            hume_handler.handle_description_update(data["content"])
+            await hume_handler.handle_description_update(data["content"])
+        else:
+            print("unrecognized data type")
+
 
 
 async def scrape_server(hume_handler):

@@ -40,20 +40,30 @@ class WebSocketHandler:
         elif message.type in ["user_message", "assistant_message"]: # this is simply the text
             role = message.message.role.upper()
             message_text = message.message.content
+            # arbitrarily will update the code_context for hume ai when
+            # people talk
+            # random =
+            if message.type == "user_message":
+                await self.code_context()
+            if self.description==None:
+                await self.description_context()
             print(f"{role}: {message_text}")
         elif message.type == "audio_output": # this is hume ai audio back to us
             message_str: str = message.data # this base64 wav file, NOT stream
             # this decodes the base64 back to bytes so it can be played
             message_bytes = base64.b64decode(message_str.encode("utf-8"))
             # now send this to the front end
-            await send_packet_to_frontend(self.frontend_connection, message_bytes)
+            if self.frontend_connection:
+                await send_packet_to_frontend(self.frontend_connection, message_bytes)
+            else:
+                print("No frontend connection available; skipping sending audio.")
             # then, this is stored in the stream for playback
             await self.byte_strs.put(message_bytes)
             return
         elif message.type == "error":
             error_message = message.message
             error_code = message.code
-            raise ApiError(f"Error code {error_code}: {error_message}")
+            raise ApiError()
 
     async def on_close(self):
         print("WebSocket connection closed.")
@@ -63,30 +73,62 @@ class WebSocketHandler:
 
     # this will send a packet of base64 embedded stream into hume ai
     async def send_audio(self, base64_audio):
+        if not self.socket:
+            print("Hume API connection not established yet. Dropping audio chunk.")
+            return
         session_settings = {
             "type": "audio_input",
-            "data": base64_audio,
+            "data": base64_audio,  # Change or remove base64 encoding if the API expects raw bytes.
         }
-        await self.socket._send(session_settings)
-        # print("Sent audio to Hume!")
+        try:
+            await self.socket._send(session_settings)
+            # print("Audio sent to Hume.")
+        except Exception as e:
+            print(f"Error sending audio: {e}")
 
     # Methods to accept scraped updates:
-    def handle_editor_update(self, content: str):
+    async def handle_editor_update(self, content: str):
         self.editor_content = content
         print("hume_handler: Updated editor content.")
 
-    def handle_description_update(self, content: str):
+    async def handle_description_update(self, content: str):
         self.description = content
         print("hume_handler: Updated description.")
 
-    async def code_context(self, user_code):
+    async def code_context(self):
+        print(f"code context updated to: {self.editor_content}")
         code_context = {
             "type": "session_settings",
-            "variables": {
-                "code": user_code
+            "context": {
+                "text": self.editor_content,
+                "type": "editable"
             }
         }
-        await self.socket._send(code_context)
+
+        if self.socket:
+            # print(self.description)
+            # await self.socket._send(description_context)
+            await self.socket._send(code_context)
+            #print('bottom')
+        else:
+            print("Socket is not set. Cannot send code context.")
+
+    async def description_context(self):
+        print(f"description context updated to: {self.description}")
+        description_context = {
+            "type": "session_settings",
+            "context": {
+                "text": self.editor_content,
+                "type": "editable"
+            }
+        }
+        if self.socket:
+            # print(self.description)
+            await self.socket._send(description_context)
+            #print('bottom')
+        else:
+            print("Socket is not set. Cannot send code context.")
+
 
 
 

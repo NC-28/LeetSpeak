@@ -1,83 +1,196 @@
-const canvas = document.getElementById("visualizer");
-const ctx = canvas.getContext("2d");
-canvas.width = 400;
-canvas.height = 400;
+class AudioVisualizer {
+    constructor() {
+        this.canvas = document.getElementById('visualizer');
+        this.ctx = this.canvas.getContext('2d');
+        this.center = this.canvas.width / 2;
+        this.radius = this.canvas.width * 0.4;
 
-const audioCtx = new AudioContext();
-const analyserInput = audioCtx.createAnalyser();
-const analyserOutput = audioCtx.createAnalyser();
-analyserInput.fftSize = 256;
-analyserOutput.fftSize = 256;
+        // Audio context setup
+        this.audioContext = new AudioContext();
+        this.inputAnalyser = this.audioContext.createAnalyser();
 
-const bufferLength = analyserInput.frequencyBinCount;
-const dataArrayInput = new Uint8Array(bufferLength);
-const dataArrayOutput = new Uint8Array(bufferLength);
+        // Configure analyser
+        this.inputAnalyser.fftSize = 1024;
+        this.bufferLength = this.inputAnalyser.frequencyBinCount;
 
-// Capture Microphone Input
-globalThis.navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
-    const source = audioCtx.createMediaStreamSource(stream);
-    source.connect(analyserInput);
-});
+        // Create data arrays
+        this.inputData = new Uint8Array(this.bufferLength);
+        this.previousInputData = new Float32Array(this.bufferLength);
+        this.smoothingFactor = 0.3;
 
-// Function to Play Sound and Capture Output
-document.addEventListener("DOMContentLoaded", () => {
-    const button = document.getElementById("playSound");
+        this.animate = this.animate.bind(this);
+        requestAnimationFrame(this.animate);
+    }
 
-    button.addEventListener("click", () => {
-        fetch(chrome.runtime.getURL("sound.mp3"))
-            .then(response => response.arrayBuffer())
-            .then(arrayBuffer => audioCtx.decodeAudioData(arrayBuffer))
-            .then(audioBuffer => {
-                const source = audioCtx.createBufferSource();
-                source.buffer = audioBuffer;
-                
-                const gainNode = audioCtx.createGain();
-                source.connect(gainNode);
-                gainNode.connect(analyserOutput);
-                analyserOutput.connect(audioCtx.destination);
-                
-                source.start();
-            })
-            .catch(error => console.error("Error playing sound:", error));
-    });
-});
+    // Method to connect input audio source
+    async connectInput(stream) {
+        const source = this.audioContext.createMediaStreamSource(stream);
+        source.connect(this.inputAnalyser);
+    }
 
-// Drawing Function
-function draw() {
-    requestAnimationFrame(draw);
-    analyserInput.getByteFrequencyData(dataArrayInput);
-    analyserOutput.getByteFrequencyData(dataArrayOutput);
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height / 2;
-    const radius = 100;
-    
-    // Draw input (blue) on outer part
-    dataArrayInput.forEach((value, i) => {
-        const angle = (i / bufferLength) * Math.PI * 2;
-        const x1 = centerX + radius * Math.cos(angle);
-        const y1 = centerY + radius * Math.sin(angle);
-        const x2 = centerX + (radius + value / 4) * Math.cos(angle);
-        const y2 = centerY + (radius + value / 4) * Math.sin(angle);
-        
-        ctx.strokeStyle = "blue";
-        ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.stroke();
-    });
-    
-    // Draw output (red) in inner part
-    dataArrayOutput.forEach((value, i) => {
-        const angle = (i / bufferLength) * Math.PI * 2;
-        const x1 = centerX + (radius - value / 4) * Math.cos(angle);
-        const y1 = centerY + (radius - value / 4) * Math.sin(angle);
-        
-        ctx.fillStyle = "rgba(255, 0, 0, " + (value / 255) + ")";
-        ctx.beginPath();
-        ctx.arc(x1, y1, 2, 0, Math.PI * 2);
-        ctx.fill();
-    });
+    // Smooth the data for more fluid animation
+    smoothData(current, previous) {
+        for (let i = 0; i < this.bufferLength; i++) {
+            previous[i] = previous[i] * (1 - this.smoothingFactor) +
+                          current[i] * this.smoothingFactor;
+        }
+        return previous;
+    }
+
+    // Draw the circular visualizer
+    draw() {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+        // Get audio data
+        this.inputAnalyser.getByteFrequencyData(this.inputData);
+
+        // Smooth the data
+        const smoothedInputData = this.smoothData(this.inputData, this.previousInputData);
+
+        // Draw input audio (green)
+        this.drawCircle(smoothedInputData, 'rgba(0, 255, 0, 0.8)', 1);
+    }
+
+    drawCircle(data, color, scale) {
+        const bars = 180;
+        const step = Math.PI * 2 / bars;
+
+        this.ctx.beginPath();
+        this.ctx.strokeStyle = color;
+
+        for (let i = 0; i < bars; i++) {
+            const value = data[i % this.bufferLength] * scale;
+            const angle = step * i;
+
+            const innerRadius = this.radius - (value / 2);
+            const outerRadius = this.radius + (value / 2);
+
+            const startX = this.center + Math.cos(angle) * innerRadius;
+            const startY = this.center + Math.sin(angle) * innerRadius;
+            const endX = this.center + Math.cos(angle) * outerRadius;
+            const endY = this.center + Math.sin(angle) * outerRadius;
+
+            this.ctx.lineWidth = 2;
+            this.ctx.moveTo(startX, startY);
+            this.ctx.lineTo(endX, endY);
+        }
+
+        this.ctx.stroke();
+    }
+
+    animate() {
+        this.draw();
+        requestAnimationFrame(this.animate);
+    }
 }
-draw();
+
+// Initialize visualizer
+const visualizer = new AudioVisualizer();
+
+// Example usage for input (microphone)
+navigator.mediaDevices.getUserMedia({ audio: true })
+    .then(stream => visualizer.connectInput(stream))
+    .catch(err => console.error('Error accessing microphone:', err));
+
+
+class AudioVisualizerOut {
+    constructor() {
+        this.canvas = document.getElementById('visualizerOut');
+        this.ctx = this.canvas.getContext('2d');
+        this.center = this.canvas.width / 2;
+        this.radius = this.canvas.width * 0.4;
+
+        // Audio context setup
+        this.audioContext = new AudioContext();
+        this.outputAnalyser = this.audioContext.createAnalyser();
+
+        // Configure analyser
+        this.outputAnalyser.fftSize = 1024;
+        this.bufferLength = this.outputAnalyser.frequencyBinCount;
+
+        // Create data arrays
+        this.outputData = new Uint8Array(this.bufferLength);
+        this.previousOutputData = new Float32Array(this.bufferLength);
+        this.smoothingFactor = 0.3;
+
+        this.animate = this.animate.bind(this);
+        requestAnimationFrame(this.animate);
+    }
+
+    // Method to connect output audio source
+    connectOutput(audioElement) {
+        const source = this.audioContext.createMediaElementSource(audioElement);
+        source.connect(this.outputAnalyser);
+        source.connect(this.audioContext.destination);
+    }
+
+    // Smooth the data for more fluid animation
+    smoothData(current, previous) {
+        for (let i = 0; i < this.bufferLength; i++) {
+            previous[i] = previous[i] * (1 - this.smoothingFactor) +
+                          current[i] * this.smoothingFactor;
+        }
+        return previous;
+    }
+
+    // Draw the circular visualizer
+    draw() {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+        // Get audio data
+        this.outputAnalyser.getByteFrequencyData(this.outputData);
+
+        // Smooth the data
+        const smoothedOutputData = this.smoothData(this.outputData, this.previousOutputData);
+
+        // Draw output audio (red)
+        this.drawCircle(smoothedOutputData, 'rgba(255, 0, 0, 0.8)', 0.8);
+    }
+
+    drawCircle(data, color, scale) {
+        const bars = 180;
+        const step = Math.PI * 2 / bars;
+
+        this.ctx.beginPath();
+        this.ctx.strokeStyle = color;
+
+        for (let i = 0; i < bars; i++) {
+            const value = data[i % this.bufferLength] * scale;
+            const angle = step * i;
+
+            const innerRadius = this.radius - (value / 2);
+            const outerRadius = this.radius + (value / 2);
+
+            const startX = this.center + Math.cos(angle) * innerRadius;
+            const startY = this.center + Math.sin(angle) * innerRadius;
+            const endX = this.center + Math.cos(angle) * outerRadius;
+            const endY = this.center + Math.sin(angle) * outerRadius;
+
+            this.ctx.lineWidth = 2;
+            this.ctx.moveTo(startX, startY);
+            this.ctx.lineTo(endX, endY);
+        }
+
+        this.ctx.stroke();
+    }
+
+    animate() {
+        this.draw();
+        requestAnimationFrame(this.animate);
+    }
+}
+
+// Initialize visualizer
+const visualizerOut = new AudioVisualizerOut();
+
+document.getElementById("playSound").addEventListener("click", () => {
+    const audio = new Audio(chrome.runtime.getURL("sound.mp3"));
+
+    // Ensure the audio plays even if it's blocked by autoplay policies
+    audio.play().catch(error => {
+        console.error("Playback error:", error);
+    });
+
+    // Connect audio to visualizer
+    visualizerOut.connectOutput(audio);
+});

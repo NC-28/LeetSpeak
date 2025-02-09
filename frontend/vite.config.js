@@ -13,5 +13,6 @@ export default defineConfig({
                                     contentScript: "src/contentScript/index.js",  // ✅ Must match file path
                                   },
                                 },
+                                  outDir: "dist"
                               },
                             });

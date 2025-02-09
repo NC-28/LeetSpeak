@@ -15,6 +15,7 @@ async def ws_handler(connection: websockets, path, hume_handler):
     """
     # this causes getting the audio from the background
     # set this so it can be referenced later
+    print('front end connection established')
     hume_handler.frontend_connection = connection
 
     async for message in connection:
