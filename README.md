@@ -15,7 +15,6 @@ By seamlessly integrating with LeetCode, it opens a live connection to a voice-t
 ## Challenges we ran into
 - Balancing amount of context and response time for AI agent
 - Running multiple processes concurrently yet working together
-- 
 
 ## Accomplishments that we're proud of
 - Being able to taking in audio and video and context simultaneously through WebSockets
