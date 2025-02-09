@@ -8,6 +8,9 @@ from hume.empathic_voice.chat.types import SubscribeEvent
 from hume.core.api_error import ApiError
 from hume import Stream
 
+from utils import send_packet_to_frontend
+
+
 class WebSocketHandler:
     def __init__(self):
         # this is the connection between the python client and the actual Hume AI API
@@ -15,6 +18,9 @@ class WebSocketHandler:
         self.socket = None
         # this is where the audio output of HumeAI goes to and gets accumulated
         self.byte_strs = Stream.new()
+        # Store the frontend connection (from the browser) here
+        self.frontend_connection = None
+
 
     def set_socket(self, socket: ChatWebsocketConnection):
         self.socket = socket
@@ -36,6 +42,8 @@ class WebSocketHandler:
             message_str: str = message.data # this base64 wav file, NOT stream
             # this decodes the base64 back to bytes so it can be played
             message_bytes = base64.b64decode(message_str.encode("utf-8"))
+            # now send this to the front end
+            await send_packet_to_frontend(self.frontend_connection, message_bytes)
             # then, this is stored in the stream for playback
             await self.byte_strs.put(message_bytes)
             return

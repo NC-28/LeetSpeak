@@ -11,12 +11,16 @@ async def ws_handler(connection: websockets, path, hume_handler):
     :param hume_handler: this
     :return:
     """
+    # this causes getting the audio from the background
+    # set this so it can be referenced later
+    hume_handler.frontend_connection = connection
+
     async for message in connection:
         if isinstance(message, bytes):
             # Convert binary audio to base64
             base64_audio = base64.b64encode(message).decode('utf-8')
-            # print(f"Base64 Audio (trimmed): {base64_audio[:50]}...")
-            # print(f"Received audio ({len(message)} bytes). Forwarding to Hume...")
+            print(f"Base64 Audio (trimmed): {base64_audio[:50]}...")
+            print(f"Received audio ({len(message)} bytes). Forwarding to Hume...")
             # then directly send the audio to the backend
             await hume_handler.send_audio(base64_audio)
         else:
