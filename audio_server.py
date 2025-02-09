@@ -2,6 +2,8 @@ import asyncio
 import websockets
 import base64
 from letstryagain import WebSocketHandler, hume_client
+from scrape_server import scrape_server
+
 
 async def ws_handler(connection: websockets, path, hume_handler):
     """
@@ -19,8 +21,8 @@ async def ws_handler(connection: websockets, path, hume_handler):
         if isinstance(message, bytes):
             # Convert binary audio to base64
             base64_audio = base64.b64encode(message).decode('utf-8')
-            print(f"Base64 Audio (trimmed): {base64_audio[:50]}...")
-            print(f"Received audio ({len(message)} bytes). Forwarding to Hume...")
+            # print(f"Base64 Audio (trimmed): {base64_audio[:50]}...")
+            # print(f"Received audio ({len(message)} bytes). Forwarding to Hume...")
             # then directly send the audio to the backend
             await hume_handler.send_audio(base64_audio)
         else:
@@ -37,7 +39,8 @@ async def main():
     # Run both the Hume client and the audio server concurrently
     await asyncio.gather(
         hume_client(hume_handler),
-        audio_server(hume_handler)
+        audio_server(hume_handler),
+        scrape_server(hume_handler)
     )
 
 if __name__ == "__main__":

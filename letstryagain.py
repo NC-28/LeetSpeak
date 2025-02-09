@@ -20,6 +20,9 @@ class WebSocketHandler:
         self.byte_strs = Stream.new()
         # Store the frontend connection (from the browser) here
         self.frontend_connection = None
+        # this is for tracking state of the user typing
+        self.editor_content = ""
+        self.description = ""
 
 
     def set_socket(self, socket: ChatWebsocketConnection):
@@ -65,7 +68,26 @@ class WebSocketHandler:
             "data": base64_audio,
         }
         await self.socket._send(session_settings)
-        print("Sent audio to Hume!")
+        # print("Sent audio to Hume!")
+
+    # Methods to accept scraped updates:
+    def handle_editor_update(self, content: str):
+        self.editor_content = content
+        print("hume_handler: Updated editor content.")
+
+    def handle_description_update(self, content: str):
+        self.description = content
+        print("hume_handler: Updated description.")
+
+    async def code_context(self, user_code):
+        code_context = {
+            "type": "session_settings",
+            "variables": {
+                "code": user_code
+            }
+        }
+        await self.socket._send(code_context)
+
 
 
 
