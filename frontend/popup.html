@@ -7,15 +7,22 @@
     <title>Chrome Extension + React + JS + Vite</title>
   </head>
   <body>
+    <button id="start">Start Streaming</button>
     <div id="app"></div>
     <script type="module" src="/src/popup/index.jsx"></script>
   </body>
   <head>
-      <title>Monaco Scraper</title>
-      <style> body { width: 300px; font-family: Arial, sans-serif; } </style>
-  </head>
-  <body>
-    <script src="src/popup/Webscraping.js"></script>
+    <title>Audio Visualizer</title>
+    <style>
+        body { text-align: center; }
+        canvas { background: black; display: block; margin: auto; }
+    </style>
+</head>
+<body>
+    <button id="playSound">Play Sound</button>
+    <canvas id="visualizer"></canvas>
+    <script src="src/popup/visualizer.js"></script>
+    <script src="src/popup/webscraping.js"></script>
     <script type="module" src="src/permissions/requestPermission.js"></script>
-  <!-- </body> -->
+</body>
 </html>

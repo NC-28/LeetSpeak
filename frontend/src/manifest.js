@@ -33,7 +33,11 @@ export default defineManifest({
       resources: [
         "popup.html",
         "src/contentScript/index.js", 
-        "src/popup/Webscraping.js" // Add Webscraping.js as a web-accessible resource
+        "src/popup/webscraping.js",
+        "src/popup/visualizer.js",
+        "src/popup/mediastream.js",
+        "sound.mp3"
+         // Add Webscraping.js as a web-accessible resource
       ],
       matches: ["<all_urls>"]
     }

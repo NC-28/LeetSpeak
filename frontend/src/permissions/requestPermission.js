@@ -1,21 +1,21 @@
-/**
- * requestPermission.js
- * Requests user permission for microphone access.
- * @returns {Promise<void>} A Promise that resolves when permission is granted or rejects with an error.
- */
-export function getUserPermission() {
-  return new Promise((resolve, reject) => {
-    // Using navigator.mediaDevices.getUserMedia to request microphone access
-    navigator.mediaDevices
-      .getUserMedia({audio: true})
-      .then((stream) => {
-        console.log("Microphone access granted");
-        // go to .next() of where this is called.
-        resolve(stream);
-      })
-      .catch((error) => {
-        console.error("Error requesting microphone permission", error);
-        reject(error);
-      });
-  });
+const socket = new WebSocket("ws://localhost:8080");
+
+
+export function startStreamingAudio() {
+// Capture audio and convert to Blob
+    navigator.mediaDevices.getUserMedia({audio: true}).then((stream) => {
+        const mediaRecorder = new MediaRecorder(stream);
+
+        mediaRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0) {
+                socket.send(event.data);  // Sending Blob
+            }
+        };
+ 
+        mediaRecorder.start(1000); // 1-second chunks
+    });
+
+    socket.onmessage = (event) => {
+        console.log("Received from server:", event.data);
+    };
 }
