@@ -44,8 +44,7 @@ export default defineManifest({
                                               "src/contentScript/index.js",
                                               "src/popup/webscraping.js",
                                               "src/popup/visualizer.js",
-                                              "src/popup/mediastream.js",
-                                              "sound.mp3"
+                                              "src/popup/mediastream.js"
                                           ],
                                           // Using a wildcard for the scheme prevents the invalid match pattern error
                                           matches: ["<all_urls>"]

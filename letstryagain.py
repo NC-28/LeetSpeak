@@ -45,8 +45,8 @@ class WebSocketHandler:
             # random =
             if message.type == "user_message":
                 await self.code_context()
-            if self.description==None:
-                await self.description_context()
+            # if self.description=="":
+            await self.description_context()
             print(f"{role}: {message_text}")
         elif message.type == "audio_output": # this is hume ai audio back to us
             message_str: str = message.data # this base64 wav file, NOT stream
@@ -101,7 +101,7 @@ class WebSocketHandler:
             "type": "session_settings",
             "context": {
                 "text": self.editor_content,
-                "type": "editable"
+                "type":"editable"
             }
         }
 
@@ -117,9 +117,9 @@ class WebSocketHandler:
         print(f"description context updated to: {self.description}")
         description_context = {
             "type": "session_settings",
-            "context": {
-                "text": self.editor_content,
-                "type": "editable"
+            "variables": {
+                "question": self.description,
+
             }
         }
         if self.socket:

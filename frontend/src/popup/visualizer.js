@@ -183,14 +183,14 @@ class AudioVisualizerOut {
 // Initialize visualizer
 const visualizerOut = new AudioVisualizerOut();
 
-document.getElementById("playSound").addEventListener("click", () => {
-    const audio = new Audio(chrome.runtime.getURL("sound.mp3"));
-
-    // Ensure the audio plays even if it's blocked by autoplay policies
-    audio.play().catch(error => {
-        console.error("Playback error:", error);
-    });
-
-    // Connect audio to visualizer
-    visualizerOut.connectOutput(audio);
-});
+// document.getElementById("playSound").addEventListener("click", () => {
+//     const audio = new Audio(chrome.runtime.getURL("sound.mp3"));
+//
+//     // Ensure the audio plays even if it's blocked by autoplay policies
+//     audio.play().catch(error => {
+//         console.error("Playback error:", error);
+//     });
+//
+//     // Connect audio to visualizer
+//     visualizerOut.connectOutput(audio);
+// });
