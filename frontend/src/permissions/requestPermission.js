@@ -20,7 +20,7 @@ export function startStreamingAudio() {
                 socket.send(event.data);
             }
         };
-        // Record in 1-second chunks.
+        // Record in 0.1-second chunks.
         mediaRecorder.start(100);
     });
 
