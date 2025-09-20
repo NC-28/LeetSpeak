@@ -1,0 +1,69 @@
+{
+  "manifest_version": 3,
+  "name": "LeetSpeak - AI Technical Interview Assistant",
+  "description": "AI-powered technical interview assistant for LeetCode practice with voice interaction",
+  "version": "1.4.0",
+  "options_ui": {
+    "page": "src/pages/options/index.html"
+  },
+  "action": {
+    "default_popup": "src/pages/popup/index.html",
+    "default_icon": {
+      "32": "icon-32.png"
+    }
+  },
+  "background": {
+    "service_worker": "src/pages/background/index.ts"
+  },
+  "icons": {
+    "128": "icon-128.png"
+  },
+  "permissions": [
+    "sidePanel",
+    "activeTab",
+    "storage",
+    "scripting"
+  ],
+  "host_permissions": [
+    "http://localhost:*/*",
+    "https://localhost:*/*",
+    "ws://localhost:*/*",
+    "wss://localhost:*/*"
+  ],
+  "side_panel": {
+    "default_path": "src/pages/panel/index.html"
+  },
+  "content_scripts": [
+    {
+      "js": [
+        "src/pages/content/leetcode-scraper.js"
+      ],
+      "matches": [
+        "*://leetcode.com/*",
+        "*://*.leetcode.com/*",
+        "*://leetcode.cn/*",
+        "*://*.leetcode.cn/*"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "contentStyle.css",
+        "icon-128.png",
+        "icon-32.png",
+        "audio-processor.js",
+        "src/lib/voiceClient.js"
+      ],
+      "matches": [
+        "*://leetcode.com/*",
+        "*://*.leetcode.com/*",
+        "*://leetcode.cn/*",
+        "*://*.leetcode.cn/*",
+        "http://localhost:*/*",
+        "https://localhost:*/*"
+      ]
+    }
+  ]
+}
