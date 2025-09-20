@@ -8,7 +8,7 @@ chrome.sidePanel
 /**
  * Define variables.
  */
-let socket = null;
+let socket: WebSocket | null = null;
 
 /**
  * Connecting WebSocket to localhost.
@@ -54,3 +54,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ data: leetCodeData });
     }
 });
+
+// Export to make this a module and avoid global scope conflicts
+export {};
