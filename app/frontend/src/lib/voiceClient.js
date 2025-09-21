@@ -15,6 +15,7 @@ class LeetSpeakVoiceClient {
         this.isConnected = false;
         this.isRecording = false;
         this.sessionActive = false;
+        this.isIntentionallyStopping = false; // Track intentional stops
         
         // Audio settings - Azure Voice Live uses 24kHz, 16-bit PCM
         this.sampleRate = 24000; // Azure Voice Live standard
@@ -120,6 +121,9 @@ class LeetSpeakVoiceClient {
         try {
             this.updateStatus('disconnecting', 'Stopping voice chat...');
             
+            // Mark that we're intentionally stopping
+            this.isIntentionallyStopping = true;
+            
             // Stop audio recording and playback
             this.stopAudio();
             
@@ -141,9 +145,15 @@ class LeetSpeakVoiceClient {
             this.broadcastConnectionState('sessionStopped');
             this.updateStatus('disconnected', 'Voice chat stopped');
             
+            // Reset the flag after a short delay to ensure it doesn't interfere
+            setTimeout(() => {
+                this.isIntentionallyStopping = false;
+            }, 100);
+            
             return { status: 'stopped' };
             
         } catch (error) {
+            this.isIntentionallyStopping = false; // Reset flag on error
             this.updateStatus('error', `Error stopping: ${error.message}`);
             throw error;
         }
@@ -647,7 +657,7 @@ class LeetSpeakVoiceClient {
     }
     
     handleDisconnection() {
-        if (this.sessionActive) {
+        if (this.sessionActive && !this.isIntentionallyStopping) {
             this.stopVoiceChat();
             this.onError?.(new Error('Connection lost. Please try again.'));
         }
