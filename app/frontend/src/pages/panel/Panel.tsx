@@ -113,6 +113,31 @@ export default function Panel() {
   };
   
   const handleStartChat = async () => {
+    // Refresh the webpage first and wait for it to finish loading
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs[0]?.id) {
+        const tabId = tabs[0].id;
+        
+        // Add a listener to wait for the page to finish loading
+        const onUpdatedListener = (updatedTabId: number, changeInfo: any) => {
+          if (updatedTabId === tabId && changeInfo.status === 'complete') {
+            // Remove the listener once loading is complete
+            chrome.tabs.onUpdated.removeListener(onUpdatedListener);
+            
+            addMessage('System', '🔄 Page refreshed and loaded successfully', 'system');
+            
+            // Continue with voice chat initialization
+            continueWithVoiceChat();
+          }
+        };
+        
+        chrome.tabs.onUpdated.addListener(onUpdatedListener);
+        chrome.tabs.reload(tabId);
+      }
+    });
+  };
+  
+  const continueWithVoiceChat = async () => {
     if (!voiceClientRef.current) {
       addMessage('System', 'Voice client not initialized', 'error');
       return;
