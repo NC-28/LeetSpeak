@@ -123,9 +123,6 @@ export default function Panel() {
           if (updatedTabId === tabId && changeInfo.status === 'complete') {
             // Remove the listener once loading is complete
             chrome.tabs.onUpdated.removeListener(onUpdatedListener);
-            
-            addMessage('System', '🔄 Page refreshed and loaded successfully', 'system');
-            
             // Continue with voice chat initialization
             continueWithVoiceChat();
           }
@@ -176,34 +173,22 @@ export default function Panel() {
     setMessages([]);
   };
   
-  const handleRefreshScrapers = () => {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs[0]?.id) {
-        chrome.tabs.sendMessage(tabs[0].id, { action: "refreshScrapers" }, (response) => {
-          if (response?.status === 'refreshed') {
-            addMessage('System', '🔄 Content scrapers refreshed', 'system');
-          }
-        });
-      }
-    });
-  };
-  
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'connected': return 'bg-green-500';
       case 'connecting': return 'bg-yellow-500 animate-pulse';
       case 'disconnecting': return 'bg-orange-500 animate-pulse';
       case 'error': return 'bg-red-500';
-      default: return 'bg-gray-500';
+      default: return 'bg-gray-400';
     }
   };
   
   const getMessageStyle = (type: string) => {
     switch (type) {
-      case 'user': return 'bg-blue-50 border-l-4 border-blue-400 ml-8';
-      case 'ai': return 'bg-green-50 border-l-4 border-green-400 mr-8';
-      case 'system': return 'bg-gray-50 border-l-4 border-gray-400';
-      case 'error': return 'bg-red-50 border-l-4 border-red-400';
+      case 'user': return 'bg-blue-50 border border-blue-100';
+      case 'ai': return 'bg-white border border-gray-200';
+      case 'system': return 'bg-gray-50 border border-gray-200';
+      case 'error': return 'bg-red-50 border border-red-200';
       default: return 'bg-white border border-gray-200';
     }
   };
@@ -213,143 +198,215 @@ export default function Panel() {
   };
   
   return (
-    <div className="flex flex-col h-screen bg-gray-100">
+    <div className="flex flex-col h-screen bg-white">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 shadow-lg">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className={`w-4 h-4 rounded-full ${getStatusColor(status.status)}`}></div>
-            <div>
-              <h1 className="font-bold text-lg">LeetSpeak - AI Technical Interview Assistant</h1>
-              <p className="text-sm opacity-90">{status.text}</p>
+      <div className="bg-white border-b border-gray-200 shadow-sm">
+        <div className="px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-3">
+                <div className={`w-3 h-3 rounded-full ${getStatusColor(status.status)}`}></div>
+                <div>
+                  <h1 className="font-semibold text-xl text-gray-900">LeetSpeak</h1>
+                  <p className="text-sm text-gray-600">AI Technical Interview Assistant</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={() => setShowConfig(!showConfig)}
+                className="flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 border border-gray-200 transition-colors"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={1.5}
+                  stroke="currentColor"
+                  className="w-4 h-4"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z"
+                  />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span>Settings</span>
+              </button>
             </div>
           </div>
-          
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={() => setShowConfig(!showConfig)}
-              className="px-3 py-1 bg-white bg-opacity-20 rounded text-sm hover:bg-opacity-30 transition-colors"
-            >
-              ⚙️ Config
-            </button>
-            <button
-              onClick={handleRefreshScrapers}
-              className="px-3 py-1 bg-white bg-opacity-20 rounded text-sm hover:bg-opacity-30 transition-colors"
-            >
-              🔄 Refresh
-            </button>
+        </div>
+        
+        {/* Session Status Bar */}
+        <div className="px-6 py-2 bg-gray-50 border-t border-gray-100">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4 text-sm text-gray-600">
+              <span className="font-medium">{status.text}</span>
+              {sessionId && (
+                <span className="text-gray-500">
+                  Session: {sessionId.substring(0, 8)}...
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </div>
       
       {/* Configuration Panel */}
       {showConfig && (
-        <div className="bg-white border-b border-gray-200 p-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Azure Endpoint</label>
-              <input
-                type="text"
-                placeholder="https://your-resource.cognitiveservices.azure.com/"
-                value={config.endpoint}
-                onChange={(e) => setConfig(prev => ({ ...prev, endpoint: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+        <div className="bg-gray-50 border-b border-gray-200">
+          <div className="px-6 py-5">
+            <div className="mb-4">
+              <h3 className="text-lg font-medium text-gray-900 mb-1">Configuration</h3>
+              <p className="text-sm text-gray-600">Configure your Azure AI services connection</p>
             </div>
             
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">API Key</label>
-              <input
-                type="password"
-                placeholder="Your Azure API Key"
-                value={config.apiKey}
-                onChange={(e) => setConfig(prev => ({ ...prev, apiKey: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-gray-700">Azure Endpoint</label>
+                <input
+                  type="text"
+                  placeholder="https://your-resource.cognitiveservices.azure.com/"
+                  value={config.endpoint}
+                  onChange={(e) => setConfig(prev => ({ ...prev, endpoint: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-gray-700">API Key</label>
+                <input
+                  type="password"
+                  placeholder="Your Azure API Key"
+                  value={config.apiKey}
+                  onChange={(e) => setConfig(prev => ({ ...prev, apiKey: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-gray-700">Model</label>
+                <select
+                  value={config.model}
+                  onChange={(e) => setConfig(prev => ({ ...prev, model: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="gpt-4o-mini">GPT-4o Mini</option>
+                  <option value="gpt-4o">GPT-4o</option>
+                  <option value="gpt-4.1-nano">GPT-4.1 Nano</option>
+                </select>
+              </div>
+              
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-gray-700">Voice</label>
+                <select
+                  value={config.voice}
+                  onChange={(e) => setConfig(prev => ({ ...prev, voice: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="en-US-Ava:DragonHDLatestNeural">Ava (Professional)</option>
+                  <option value="en-US-Brian:DragonHDLatestNeural">Brian (Friendly)</option>
+                  <option value="en-US-Emma:DragonHDLatestNeural">Emma (Clear)</option>
+                </select>
+              </div>
             </div>
             
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Model</label>
-              <select
-                value={config.model}
-                onChange={(e) => setConfig(prev => ({ ...prev, model: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="gpt-4o-mini">GPT-4o Mini</option>
-                <option value="gpt-4o">GPT-4o</option>
-                <option value="gpt-4.1-nano">GPT-4.1 Nano</option>
-              </select>
+            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-800">
+                <span className="font-medium">Note:</span> If fields are left empty, the extension will use configuration from your backend server's .env file.
+              </p>
             </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Voice</label>
-              <select
-                value={config.voice}
-                onChange={(e) => setConfig(prev => ({ ...prev, voice: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="en-US-Ava:DragonHDLatestNeural">Ava (Professional)</option>
-                <option value="en-US-Brian:DragonHDLatestNeural">Brian (Friendly)</option>
-                <option value="en-US-Emma:DragonHDLatestNeural">Emma (Clear)</option>
-              </select>
-            </div>
-          </div>
-          
-          <div className="mt-4 text-sm text-gray-600">
-            <p><strong>Note:</strong> If fields are left empty, the extension will use configuration from your backend server's .env file.</p>
           </div>
         </div>
       )}
       
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="flex-1 overflow-y-auto bg-gray-50">
         {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-gray-500">
-            <div className="text-center">
-              <div className="mb-6">
-                <svg className="w-20 h-20 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                </svg>
+          <div className="flex flex-col items-center justify-center h-full px-6">
+            <div className="text-center max-w-md">
+              <div className="mb-8">
+                <div className="w-16 h-16 mx-auto mb-4 bg-blue-100 rounded-full flex items-center justify-center">
+                  <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                  </svg>
+                </div>
               </div>
-              <h3 className="text-xl font-semibold mb-2">Ready for Your Technical Interview!</h3>
-              <div className="space-y-2 text-sm max-w-md">
-                <p>🎯 Navigate to a LeetCode problem</p>
-                <p>🎙️ Click "Start Voice Chat" to begin</p>
-                <p>💬 Discuss your approach with the AI interviewer</p>
-                <p>🚀 Get real-time feedback as you code</p>
+              <h3 className="text-xl font-semibold text-gray-900 mb-4">Ready for Your Technical Interview</h3>
+              <div className="space-y-3 text-sm text-gray-600">
+                <div className="flex items-center space-x-3">
+                  <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <span className="text-xs font-medium text-blue-600">1</span>
+                  </div>
+                  <p className="text-left">Navigate to a LeetCode problem</p>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <span className="text-xs font-medium text-blue-600">2</span>
+                  </div>
+                  <p className="text-left">Click "Start Voice Chat" to begin</p>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <span className="text-xs font-medium text-blue-600">3</span>
+                  </div>
+                  <p className="text-left">Discuss your approach with the AI interviewer</p>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <span className="text-xs font-medium text-blue-600">4</span>
+                  </div>
+                  <p className="text-left">Get real-time feedback as you code</p>
+                </div>
               </div>
             </div>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="p-6 space-y-4">
             {messages.map((msg, index) => (
-              <div key={index} className={`p-4 rounded-lg shadow-sm ${getMessageStyle(msg.type)}`}>
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    {msg.type !== 'system' && msg.type !== 'error' && (
-                      <div className="flex items-center space-x-2 mb-2">
-                        <span className="font-semibold text-sm">{msg.sender}</span>
-                        <span className="text-xs text-gray-500">{formatTimestamp(msg.timestamp)}</span>
+              <div key={index} className={`rounded-xl shadow-sm ${getMessageStyle(msg.type)}`}>
+                <div className="p-4">
+                  {msg.type !== 'system' && msg.type !== 'error' && (
+                    <div className="flex items-center space-x-2 mb-3">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium ${
+                        msg.type === 'user' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
+                      }`}>
+                        {msg.type === 'user' ? 'U' : 'AI'}
                       </div>
-                    )}
-                    <div className="text-sm leading-relaxed whitespace-pre-wrap">{msg.message}</div>
+                      <div>
+                        <span className="font-medium text-sm text-gray-900">{msg.sender}</span>
+                        <span className="text-xs text-gray-500 ml-2">{formatTimestamp(msg.timestamp)}</span>
+                      </div>
+                    </div>
+                  )}
+                  <div className="text-sm leading-relaxed text-gray-700 whitespace-pre-wrap ml-10">
+                    {msg.message}
                   </div>
                 </div>
               </div>
             ))}
             
             {isTyping && (
-              <div className="bg-green-50 border-l-4 border-green-400 mr-8 p-4 rounded-lg shadow-sm">
-                <div className="flex items-center space-x-2 mb-2">
-                  <span className="font-semibold text-sm">🤖 AI Interviewer</span>
-                  <span className="text-xs text-gray-500">now</span>
-                </div>
-                <div className="text-sm flex items-center">
-                  <span>Thinking about your response</span>
-                  <div className="ml-3 flex space-x-1">
-                    <div className="w-2 h-2 bg-green-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                    <div className="w-2 h-2 bg-green-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                    <div className="w-2 h-2 bg-green-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+              <div className="rounded-xl shadow-sm bg-white border border-gray-200">
+                <div className="p-4">
+                  <div className="flex items-center space-x-2 mb-3">
+                    <div className="w-8 h-8 rounded-full bg-green-100 text-green-700 flex items-center justify-center text-xs font-medium">
+                      AI
+                    </div>
+                    <div>
+                      <span className="font-medium text-sm text-gray-900">AI Interviewer</span>
+                      <span className="text-xs text-gray-500 ml-2">now</span>
+                    </div>
+                  </div>
+                  <div className="text-sm flex items-center ml-10 text-gray-600">
+                    <span>Thinking about your response</span>
+                    <div className="ml-3 flex space-x-1">
+                      <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                      <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                      <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -361,58 +418,48 @@ export default function Panel() {
       </div>
       
       {/* Controls */}
-      <div className="bg-white border-t border-gray-200 p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex space-x-3">
-            {!isConnected ? (
-              <button
-                onClick={handleStartChat}
-                disabled={status.status === 'connecting'}
-                className="flex items-center space-x-2 bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                </svg>
-                <span>{status.status === 'connecting' ? 'Starting...' : 'Start Voice Chat'}</span>
-              </button>
-            ) : (
-              <button
-                onClick={handleStopChat}
-                disabled={status.status === 'disconnecting'}
-                className="flex items-center space-x-2 bg-red-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-red-700 disabled:bg-red-400 disabled:cursor-not-allowed transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10h6v4H9z" />
-                </svg>
-                <span>{status.status === 'disconnecting' ? 'Stopping...' : 'Stop Voice Chat'}</span>
-              </button>
-            )}
+      <div className="bg-white border-t border-gray-200 shadow-sm">
+        <div className="px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              {!isConnected ? (
+                <button
+                  onClick={handleStartChat}
+                  disabled={status.status === 'connecting'}
+                  className="flex items-center space-x-2 bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed transition-colors shadow-sm"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                  </svg>
+                  <span>{status.status === 'connecting' ? 'Starting...' : 'Start Voice Chat'}</span>
+                </button>
+              ) : (
+                <button
+                  onClick={handleStopChat}
+                  disabled={status.status === 'disconnecting'}
+                  className="flex items-center space-x-2 bg-red-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-red-700 disabled:bg-red-300 disabled:cursor-not-allowed transition-colors shadow-sm"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5.25 7.5A2.25 2.25 0 017.5 5.25h9a2.25 2.25 0 012.25 2.25v9a2.25 2.25 0 01-2.25 2.25h-9a2.25 2.25 0 01-2.25-2.25v-9z" />
+                  </svg>
+                  <span>{status.status === 'disconnecting' ? 'Stopping...' : 'Stop Voice Chat'}</span>
+                </button>
+              )}
+            </div>
             
-            {messages.length > 0 && (
-              <button
-                onClick={handleClearMessages}
-                className="flex items-center space-x-2 bg-gray-500 text-white px-4 py-3 rounded-lg hover:bg-gray-600 transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-                <span>Clear</span>
-              </button>
-            )}
-          </div>
-          
-          <div className="text-right">
-            {sessionId && (
-              <div className="text-xs text-gray-500 mb-1">
-                Session ID: {sessionId.substring(0, 8)}...
-              </div>
-            )}
-            {isConnected && (
-              <div className="text-xs text-green-600 font-medium">
-                🔴 Recording - Speak naturally
-              </div>
-            )}
+            <div>
+              {messages.length > 0 && (
+                <button
+                  onClick={handleClearMessages}
+                  className="flex items-center space-x-2 bg-gray-600 text-white px-4 py-3 rounded-lg font-medium hover:bg-gray-700 transition-colors shadow-sm"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                  </svg>
+                  <span>Clear Chat</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
