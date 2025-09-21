@@ -32,9 +32,11 @@ function connectToBackend() {
     
     socket.addEventListener('open', () => {
         console.log("✅ WebSocket connected to FastAPI backend");
-        // Send initial data when connected
+        // Send initial data when connected, with a small delay to ensure DOM is ready
         if (observersActive) {
-            sendCurrentData();
+            setTimeout(() => {
+                sendCurrentData();
+            }, 1000);
         }
     });
 
@@ -202,12 +204,51 @@ function sendCurrentData() {
         sendToServer("title_update", problemTitle);
     }
     
-    // Send both editor and description data
-    if (data.code) {
-        sendToServer("editor_update", data.code);
-    }
+    // Send description data (this usually works)
     if (data.description) {
         sendToServer("description_update", data.description);
+    }
+    
+    // Handle editor content with retry logic
+    if (data.code) {
+        sendToServer("editor_update", data.code);
+    } else {
+        // Try alternative selectors or retry logic
+        retryEditorCapture();
+    }
+}
+
+function retryEditorCapture(attempt = 1, maxAttempts = 5) {
+    if (!observersActive || !isVoiceSessionActive) {
+        return;
+    }
+    
+    // Try multiple editor selectors
+    const editorSelectors = [
+        ".view-lines.monaco-mouse-cursor-text",  // Primary selector
+        ".view-lines",                          // Alternative 1
+        ".monaco-editor .view-lines",           // Alternative 2
+        ".monaco-scrollable-element .view-lines", // Alternative 3
+        "[data-mode-id='python'] .view-lines", // Language-specific
+        "[data-mode-id='javascript'] .view-lines",
+        "[data-mode-id='java'] .view-lines",
+        "[data-mode-id='cpp'] .view-lines"
+    ];
+    
+    let editorContent = "";
+    
+    for (const selector of editorSelectors) {
+        const element = document.querySelector(selector);
+        if (element && element.innerText.trim()) {
+            editorContent = element.innerText;
+            break;
+        }
+    }
+    
+    if (editorContent) {
+        sendToServer("editor_update", editorContent);
+    } else if (attempt < maxAttempts) {
+        setTimeout(() => retryEditorCapture(attempt + 1, maxAttempts), attempt * 500);
     }
 }
 

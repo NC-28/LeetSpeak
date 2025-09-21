@@ -59,7 +59,7 @@ export class TranscriptManager {
     handleUserTranscript(transcript) {
         if (transcript) {
             console.log('✅ User transcription:', transcript);
-            this.onMessage?.('👤 You', transcript, 'user');
+            this.onMessage?.('', transcript, 'user');
             this.onTranscript?.({ type: 'user', text: transcript });
         }
     }
@@ -92,7 +92,7 @@ export class TranscriptManager {
             
             const finalTranscript = this.responseTranscripts.get(responseId) || this.currentResponse;
             if (finalTranscript) {
-                this.onMessage?.('🤖 AI', finalTranscript, 'ai');
+                this.onMessage?.('', finalTranscript, 'ai');
                 this.onTranscript?.({ type: 'ai', text: finalTranscript });
             }
         }

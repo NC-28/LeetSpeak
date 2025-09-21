@@ -373,7 +373,7 @@ export default function Panel() {
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium ${
                         msg.type === 'user' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
                       }`}>
-                        {msg.type === 'user' ? 'U' : 'AI'}
+                        {msg.type === 'user' ? '👤' : 'AI'}
                       </div>
                       <div>
                         <span className="font-medium text-sm text-gray-900">{msg.sender}</span>
