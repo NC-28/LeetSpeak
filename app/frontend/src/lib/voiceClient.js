@@ -582,6 +582,7 @@ class LeetSpeakVoiceClient {
     stopAudio() {
         this.isRecording = false;
         this.isPlaying = false;
+        this.isProcessingAudio = false; // Stop any ongoing audio processing
         
         if (this.currentAudioSource) {
             try {
@@ -602,8 +603,15 @@ class LeetSpeakVoiceClient {
             this.audioContext = null;
         }
         
+        // Clear all pending audio output
         this.audioChunks = [];
+        this.audioQueue = []; // Clear the audio queue to remove any pending audio
         this.nextPlayTime = 0;
+        
+        // Reset response tracking to prevent any pending audio from playing
+        this.currentResponse = '';
+        this.activeResponseId = null;
+        this.isCancelling = true; // Prevent any new audio from being processed
     }
     
     interruptForUserSpeech() {
