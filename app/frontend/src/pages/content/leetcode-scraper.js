@@ -1,7 +1,13 @@
 /**
  * LeetSpeak Content Scraper - Connection-Aware Version
  * 
- * Only connects and starts scraping when there's an active voice session
+ * Only connects and starts scraping wh        } else if (message.action === "reloadContentScript") {
+        console.log("🔄 Reloading content script observers...");
+        if (observersActive) {
+            observeLeetCodeEditor();
+            observeProblemDescription();
+            observeProblemTitle();
+        }re's an active voice session
  * Listens to connection state changes from the voice client
  */
 
@@ -62,6 +68,7 @@ function startScraping() {
     // Start observers
     observeLeetCodeEditor();
     observeProblemDescription();
+    observeProblemTitle();
     
     // Connect to backend if voice session is active
     if (isVoiceSessionActive) {
@@ -169,12 +176,31 @@ function getCurrentLeetCodeData() {
     };
 }
 
+// Helper function to extract just the problem name from the title
+function extractProblemTitle() {
+    const titleElement = document.querySelector('title[data-next-head]');
+    if (titleElement) {
+        const fullTitle = titleElement.textContent;
+        // Extract just the problem name by removing " - LeetCode" suffix
+        const problemName = fullTitle.replace(' - LeetCode', '').trim();
+        console.log(`🏷️ Extracted problem title: "${problemName}" from full title: "${fullTitle}"`);
+        return problemName;
+    }
+    return "";
+}
+
 function sendCurrentData() {
     if (!observersActive || !isVoiceSessionActive) {
         return;
     }
     
     const data = getCurrentLeetCodeData();
+    
+    // Send title data
+    const problemTitle = extractProblemTitle();
+    if (problemTitle) {
+        sendToServer("title_update", problemTitle);
+    }
     
     // Send both editor and description data
     if (data.code) {
@@ -256,12 +282,46 @@ function observeProblemDescription() {
     });
 }
 
+// Observe the problem title changes
+function observeProblemTitle() {
+    console.log('🔍 Setting up problem title observer...');
+    
+    // Create a MutationObserver to watch for title changes
+    const titleObserver = new MutationObserver(debounce(() => {
+        if (!observersActive) return; // Don't process if observers are inactive
+        
+        const problemTitle = extractProblemTitle();
+        if (problemTitle) {
+            console.log(`🏷️ Title changed: ${problemTitle}`);
+            sendToServer("title_update", problemTitle);
+        }
+    }, 500));
+    
+    // Observe changes to the document title
+    const titleElement = document.querySelector('title[data-next-head]');
+    if (titleElement) {
+        console.log('✅ Found title element, setting up observer');
+        titleObserver.observe(titleElement, { childList: true, characterData: true });
+        
+        // Send initial title
+        const initialTitle = extractProblemTitle();
+        if (initialTitle && observersActive) {
+            console.log(`🏷️ Initial title: ${initialTitle}`);
+            sendToServer("title_update", initialTitle);
+        }
+    } else {
+        console.log('⚠️ Title element not found, retrying in 500ms...');
+        setTimeout(() => observeProblemTitle(), 500);
+    }
+}
+
 console.log('🎯 LeetSpeak Connection-Aware Scraper Ready');
 
 // Initialize observers but don't start scraping yet - wait for voice connection
 // The observers will be set up but won't send data until voice session is active
 observeLeetCodeEditor();
 observeProblemDescription();
+observeProblemTitle();
 
 // Export for debugging
 window.leetSpeakScraper = {
@@ -269,6 +329,8 @@ window.leetSpeakScraper = {
     sendToServer,
     observeLeetCodeEditor,
     observeProblemDescription,
+    observeProblemTitle,
+    extractProblemTitle,
     startScraping,
     stopScraping,
     getCurrentLeetCodeData,

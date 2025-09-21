@@ -404,7 +404,7 @@ Rules for variables:
                 "name": "en-US-Ava:DragonHDLatestNeural",
                 "type": "azure-standard",
                 "temperature": 0.7,
-                "rate": "1.25",
+                "rate": "1.4",
             },
         },
         "event_id": ""
