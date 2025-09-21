@@ -22,7 +22,8 @@
     "sidePanel",
     "activeTab",
     "storage",
-    "scripting"
+    "scripting",
+    "tabs"
   ],
   "host_permissions": [
     "http://localhost:*/*",

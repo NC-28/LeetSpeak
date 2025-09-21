@@ -1,42 +1,137 @@
 /**
- * LeetSpeak Content Scraper - Based on Proven Legacy Approach
+ * LeetSpeak Content Scraper - Connection-Aware Version
  * 
- * Simplified, reliable content scraper using the exact same approach that worked in legacy
- * Connects to FastAPI backend at ws://localhost:8000/ws/scraping
+ * Only connects and starts scraping when there's an active voice session
+ * Listens to connection state changes from the voice client
  */
 
-console.log("🚀 LeetSpeak Legacy-Style Scraper Initialized");
+console.log("🚀 LeetSpeak Connection-Aware Scraper Initialized");
 
-// Connect to FastAPI WebSocket Server  
-const socket = new WebSocket("ws://localhost:8000/ws/scraping");
+// Connection state management
+let socket = null;
+let isVoiceSessionActive = false;
+let currentSessionId = null;
+let observersActive = false;
 
-// --- WebSocket Setup ---
-socket.addEventListener('open', () => {
-    console.log("✅ WebSocket connected to FastAPI backend");
-});
+// --- Connection Management ---
 
-socket.addEventListener('error', (error) => {
-    console.error("❌ WebSocket error:", error);
-});
+function connectToBackend() {
+    if (socket) {
+        console.log("⚠️ Socket already exists, closing previous connection");
+        socket.close();
+    }
+    
+    console.log("📡 Connecting to FastAPI WebSocket backend...");
+    socket = new WebSocket("ws://localhost:8000/ws/scraping");
+    
+    socket.addEventListener('open', () => {
+        console.log("✅ WebSocket connected to FastAPI backend");
+        // Send initial data when connected
+        if (observersActive) {
+            sendCurrentData();
+        }
+    });
 
-socket.addEventListener('close', () => {
-    console.warn("⚠️ WebSocket closed. Attempting to reconnect...");
-    // Simple reconnect strategy
-    setTimeout(() => {
-        console.log("🔄 Reloading page to reconnect...");
-        location.reload();
-    }, 3000);
+    socket.addEventListener('error', (error) => {
+        console.error("❌ WebSocket error:", error);
+    });
+
+    socket.addEventListener('close', () => {
+        console.warn("⚠️ WebSocket closed");
+        socket = null;
+    });
+}
+
+function disconnectFromBackend() {
+    if (socket && socket.readyState === WebSocket.OPEN) {
+        console.log("🔌 Disconnecting from backend");
+        socket.close();
+    }
+    socket = null;
+}
+
+function startScraping() {
+    if (observersActive) {
+        console.log("⚠️ Observers already active");
+        return;
+    }
+    
+    console.log("🎯 Starting LeetCode scraping...");
+    observersActive = true;
+    
+    // Start observers
+    observeLeetCodeEditor();
+    observeProblemDescription();
+    
+    // Connect to backend if voice session is active
+    if (isVoiceSessionActive) {
+        connectToBackend();
+    }
+}
+
+function stopScraping() {
+    if (!observersActive) {
+        console.log("⚠️ Observers not active");
+        return;
+    }
+    
+    console.log("🛑 Stopping LeetCode scraping...");
+    observersActive = false;
+    
+    // Disconnect from backend
+    disconnectFromBackend();
+    
+    // Note: We don't stop MutationObservers as they're cheap to keep running
+    // They just won't send data when observersActive is false
+}
+
+// --- Voice Connection State Listener ---
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.action === 'voiceConnectionStateChanged') {
+        console.log(`🔄 Voice connection state changed: ${message.state}`);
+        
+        const wasActive = isVoiceSessionActive;
+        isVoiceSessionActive = message.sessionActive && message.isConnected;
+        currentSessionId = message.sessionId;
+        
+        if (isVoiceSessionActive && !wasActive) {
+            // Voice session became active
+            console.log("🎤 Voice session activated - starting scraping");
+            startScraping();
+        } else if (!isVoiceSessionActive && wasActive) {
+            // Voice session became inactive
+            console.log("🎤 Voice session deactivated - stopping scraping");
+            stopScraping();
+        }
+    } else if (message.action === "reloadContentScript") {
+        console.log("🔄 Reloading content script observers...");
+        if (observersActive) {
+            observeLeetCodeEditor();
+            observeProblemDescription();
+        }
+    } else if (message.action === "getLeetCodeData") {
+        // Always provide current data if requested
+        const data = getCurrentLeetCodeData();
+        sendResponse(data);
+    }
+    return true; // Keep message channel open
 });
 
 // Function to send data via WebSocket with retry logic - Enhanced with FastAPI format
 function sendToServer(type, content) {
+    // Only send if observers are active and we have a voice session
+    if (!observersActive || !isVoiceSessionActive) {
+        console.log(`🚫 Scraping disabled - not sending ${type}`);
+        return;
+    }
+    
     console.log("=" * 50);
     console.log(`📤 SENDING TO BACKEND - Type: ${type}`);
     console.log(`📤 Content Length: ${content.length}`);
     console.log(`📤 Content Preview: ${content.substring(0, 200)}${content.length > 200 ? '...' : ''}`);
-    console.log(`📤 Full Content:`, content);
+    console.log(`📤 Session ID: ${currentSessionId}`);
     
-    if (socket.readyState === WebSocket.OPEN) {
+    if (socket && socket.readyState === WebSocket.OPEN) {
         // Format message for FastAPI backend (matching our backend expectations)
         const message = {
             type: type,
@@ -46,17 +141,48 @@ function sendToServer(type, content) {
                 timestamp: Date.now()
             },
             url: window.location.href,
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            sessionId: currentSessionId
         };
         
         socket.send(JSON.stringify(message));
         console.log(`✅ Sent ${type} successfully to FastAPI backend`);
         console.log(`✅ Complete message sent:`, message);
     } else {
-        console.warn("⚠️ Socket not ready. Retrying...");
-        setTimeout(() => sendToServer(type, content), 500);
+        console.warn("⚠️ Socket not ready or not connected");
     }
     console.log("=" * 50);
+}
+
+// --- Data Collection Functions ---
+
+function getCurrentLeetCodeData() {
+    const editorElement = document.querySelector(".view-lines.monaco-mouse-cursor-text");
+    const descriptionElements = document.querySelectorAll(".elfjS");
+    
+    return {
+        title: document.title,
+        description: Array.from(descriptionElements).map(el => el.innerText.trim()).join("\n"),
+        code: editorElement ? editorElement.innerText : "",
+        url: window.location.href,
+        timestamp: Date.now()
+    };
+}
+
+function sendCurrentData() {
+    if (!observersActive || !isVoiceSessionActive) {
+        return;
+    }
+    
+    const data = getCurrentLeetCodeData();
+    
+    // Send both editor and description data
+    if (data.code) {
+        sendToServer("editor_update", data.code);
+    }
+    if (data.description) {
+        sendToServer("description_update", data.description);
+    }
 }
 
 // --- Helper: Debounce (same as legacy) ---
@@ -93,6 +219,8 @@ function observeLeetCodeEditor() {
     console.log(`🔍 Setting up editor observer with selector: ${editorSelector}`);
     
     observeElement(editorSelector, () => {
+        if (!observersActive) return; // Don't process if observers are inactive
+        
         const editor = document.querySelector(editorSelector);
         if (editor) {
             const content = editor.innerText;
@@ -110,6 +238,8 @@ function observeProblemDescription() {
     const descriptionSelector = ".elfjS";
     
     observeElement(descriptionSelector, () => {
+        if (!observersActive) return; // Don't process if observers are inactive
+        
         const descriptionElements = document.querySelectorAll(descriptionSelector);
         console.log(`📋 Found ${descriptionElements.length} description elements`);
         
@@ -126,42 +256,24 @@ function observeProblemDescription() {
     });
 }
 
-console.log('🎯 Initializing LeetSpeak scraper with legacy approach...');
+console.log('🎯 LeetSpeak Connection-Aware Scraper Ready');
 
-// Initialize Observers (same as legacy)
+// Initialize observers but don't start scraping yet - wait for voice connection
+// The observers will be set up but won't send data until voice session is active
 observeLeetCodeEditor();
 observeProblemDescription();
-
-// --- Handle SPA Navigation (same as legacy) ---
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.action === "reloadContentScript") {
-        console.log("🔄 Reloading content script observers...");
-        observeLeetCodeEditor();
-        observeProblemDescription();
-    } else if (message.action === "getLeetCodeData") {
-        // Provide current data if requested
-        const editorElement = document.querySelector(".view-lines.monaco-mouse-cursor-text");
-        const descriptionElements = document.querySelectorAll(".elfjS");
-        
-        const data = {
-            title: document.title,
-            description: Array.from(descriptionElements).map(el => el.innerText.trim()).join("\n"),
-            code: editorElement ? editorElement.innerText : "",
-            url: window.location.href,
-            timestamp: Date.now()
-        };
-        
-        sendResponse(data);
-    }
-    return true; // Keep message channel open
-});
 
 // Export for debugging
 window.leetSpeakScraper = {
     socket,
     sendToServer,
     observeLeetCodeEditor,
-    observeProblemDescription
+    observeProblemDescription,
+    startScraping,
+    stopScraping,
+    getCurrentLeetCodeData,
+    isVoiceSessionActive,
+    observersActive
 };
 
-console.log("✅ LeetSpeak Legacy-Style Scraper Ready!");
+console.log("✅ LeetSpeak Connection-Aware Scraper Ready!");

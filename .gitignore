@@ -7,6 +7,5 @@ __pycache__/
 /node_modules
 /dist
 /venv
-/legacy*
 /start_dev.bat
 /app/logs

@@ -105,6 +105,7 @@ class LeetSpeakVoiceClient {
             await this.startBackendSession(config);
             
             this.sessionActive = true;
+            this.broadcastConnectionState('sessionActive');
             this.updateStatus('connected', 'Voice chat active');
             
             return { sessionId: this.sessionId, status: 'active' };
@@ -137,6 +138,7 @@ class LeetSpeakVoiceClient {
             this.isConnected = false;
             this.sessionId = null;
             
+            this.broadcastConnectionState('sessionStopped');
             this.updateStatus('disconnected', 'Voice chat stopped');
             
             return { status: 'stopped' };
@@ -242,6 +244,7 @@ class LeetSpeakVoiceClient {
             this.websocket.onopen = () => {
                 console.log('✅ Connected to backend WebSocket');
                 this.isConnected = true;
+                this.broadcastConnectionState('connected');
                 resolve();
             };
             
@@ -257,6 +260,7 @@ class LeetSpeakVoiceClient {
             this.websocket.onclose = () => {
                 console.log('Backend WebSocket disconnected');
                 this.isConnected = false;
+                this.broadcastConnectionState('disconnected');
                 this.handleDisconnection();
             };
         });
@@ -642,6 +646,26 @@ class LeetSpeakVoiceClient {
     }
     
     // Utility functions
+    broadcastConnectionState(state) {
+        // Broadcast to all tabs with LeetCode pages
+        if (typeof chrome !== 'undefined' && chrome.tabs) {
+            chrome.tabs.query({ url: ['*://leetcode.com/*', '*://*.leetcode.com/*', '*://leetcode.cn/*', '*://*.leetcode.cn/*'] }, (tabs) => {
+                tabs.forEach(tab => {
+                    chrome.tabs.sendMessage(tab.id, {
+                        action: 'voiceConnectionStateChanged',
+                        state: state,
+                        sessionId: this.sessionId,
+                        isConnected: this.isConnected,
+                        sessionActive: this.sessionActive
+                    }).catch(error => {
+                        // Ignore errors for tabs that don't have content script loaded
+                        console.log(`Could not send message to tab ${tab.id}:`, error.message);
+                    });
+                });
+            });
+        }
+    }
+    
     updateStatus(status, text) {
         console.log(`Status: ${status} - ${text}`);
         this.onStatusChange?.({ status, text });
