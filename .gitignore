@@ -7,6 +7,6 @@ __pycache__/
 /node_modules
 /dist
 /venv
-/start_dev.bat
+/start_dev*
 /app/backend/logs
-/dev_start.py
+/.vscode
