@@ -8,4 +8,5 @@ __pycache__/
 /dist
 /venv
 /start_dev.bat
-/app/logs
+/app/backend/logs
+/dev_start.py

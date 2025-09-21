@@ -26,7 +26,7 @@ class LeetSpeakStarter:
     
     def __init__(self):
         self.project_root = Path(__file__).parent
-        self.backend_dir = self.project_root / "app"
+        self.backend_dir = self.project_root / "app" / "backend"
         self.frontend_dir = self.project_root / "app" / "frontend"
         self.backend_process: Optional[subprocess.Popen] = None
         self.frontend_process: Optional[subprocess.Popen] = None
@@ -40,7 +40,7 @@ class LeetSpeakStarter:
             import fastapi
             import uvicorn
             import websockets
-            import azure.cognitiveservices.speech
+            import pydantic
             logger.info("✓ Python dependencies found")
         except ImportError as e:
             logger.error(f"✗ Missing Python dependency: {e}")
@@ -123,8 +123,8 @@ FRONTEND_PORT=5173
         logger.info("Starting backend server...")
         
         try:
-            # Use the backend_server.py directly
-            backend_script = self.backend_dir / "backend_server.py"
+            # Use the start_server.py for better user experience
+            backend_script = self.backend_dir / "start_server.py"
             if not backend_script.exists():
                 logger.error(f"Backend script not found: {backend_script}")
                 return False
@@ -183,7 +183,7 @@ FRONTEND_PORT=5173
         logger.info("Running system tests...")
         
         try:
-            test_script = self.project_root / "test_integration.py"
+            test_script = self.project_root / "app" / "test" / "test_integration.py"
             if not test_script.exists():
                 logger.warning("⚠ Integration test script not found")
                 return True  # Not critical
@@ -251,7 +251,7 @@ FRONTEND_PORT=5173
 ║  4. Logs and Debugging:                                                       ║
 ║     • Backend logs: Check terminal output                                     ║
 ║     • Extension logs: Chrome DevTools > Console                              ║
-║     • Voice logs: app/logs/ directory                                        ║
+║     • Voice logs: app/backend/logs/ directory                                ║
 ║                                                                               ║
 ║  Press Ctrl+C to stop all services                                           ║
 ║                                                                               ║

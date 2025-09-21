@@ -9,6 +9,7 @@ import sys
 import asyncio
 import uvicorn
 from pathlib import Path
+import logging
 
 def main():
     """Main startup function"""
@@ -55,10 +56,14 @@ def main():
     print("📝 Press Ctrl+C to stop the server")
     print("=" * 50)
     
+    # Setup logging directory info
+    logs_dir = script_dir / "logs"
+    print(f"📁 Logs will be written to: {logs_dir.absolute()}")
+    
     try:
         # Import and run the server
         uvicorn.run(
-            "backend_server:app",
+            "endpoints:app",
             host="0.0.0.0",
             port=8000,
             reload=True,
