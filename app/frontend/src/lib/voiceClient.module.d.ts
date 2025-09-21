@@ -8,12 +8,6 @@ declare module '../../lib/voiceClient.js' {
     onMessage: ((message: any) => void) | null;
     onTranscript: ((transcript: any) => void) | null;
     onError: ((error: Error) => void) | null;
-    setVolume(volume: number): void;
-    isMuted(): boolean;
-    toggleMute(): void;
-    getSessionStatus(): Promise<string>;
-    clearMessages(): void;
-    destroy(): void;
   }
   
   export default LeetSpeakVoiceClient;

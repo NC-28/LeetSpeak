@@ -55,7 +55,14 @@
         "icon-128.png",
         "icon-32.png",
         "audio-processor.js",
-        "src/lib/voiceClient.js"
+        "src/lib/voiceClient.js",
+        "src/lib/AudioManager.js",
+        "src/lib/WebSocketManager.js",
+        "src/lib/SessionManager.js",
+        "src/lib/TranscriptManager.js",
+        "src/lib/ChromeExtensionBridge.js",
+        "src/lib/constants.js",
+        "src/lib/audioUtils.js"
       ],
       "matches": [
         "*://leetcode.com/*",
