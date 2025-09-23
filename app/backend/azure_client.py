@@ -106,8 +106,9 @@ Speak as if you are on a live voice call.
 
 The candidate can already see the full problem and their code on screen.  
 The system will provide two reference variables ONCE at the start:  
+{current_title} = the name/title of the problem
 {current_description} = the problem statement  
-{current_code} = the candidate's current code  
+{current_code} = the candidate's current code in their editor 
 
 Rules for variables:  
 • Use them only as context. Never repeat or output them verbatim.  
@@ -211,3 +212,92 @@ async def send_context_update_to_azure(connection, context_type: str, content: s
         
     except Exception as e:
         logger.error(f"Failed to send context update: {e}")
+
+
+
+async def send_text_message(connection: VoiceLiveConnection, text: str, session_id: str = None):
+    """Send a text message that will be processed and responded to with audio"""
+    try:
+        # Create a conversation item with text content
+        text_message = {
+            "type": "conversation.item.create",
+            "item": {
+                "id": f"msg_{uuid.uuid4()}",
+                "type": "message",
+                "role": "user",
+                "content": [
+                    {
+                        "type": "input_text", 
+                        "text": text
+                    }
+                ]
+            }
+        }
+        
+        await connection.send(json.dumps(text_message))
+        
+        # Trigger a response that will be converted to audio
+        response_create = {
+            "type": "response.create",
+            "response": {
+                "modalities": ["audio"],  # This ensures audio output
+                "instructions": "Respond as the technical interviewer. Keep it concise."
+            }
+        }
+        
+        await connection.send(json.dumps(response_create))
+        
+        logger.info(f"Text message sent to session {session_id[:8] if session_id else 'unknown'}: {text[:100]}{'...' if len(text) > 100 else ''}")
+        
+    except Exception as e:
+        logger.error(f"Failed to send text message: {e}")
+        raise
+
+
+async def trigger_session_evaluation(connection: VoiceLiveConnection, session_id: str, final_code: str = "", session_duration: str = "", scraping_data: dict = None):
+    """Trigger comprehensive evaluation at the end of the interview session"""
+    try:
+        # Get additional context from scraping data if available
+        problem_title = ""
+        problem_description = ""
+        if scraping_data:
+            problem_title = scraping_data.get("title", "")
+            problem_description = scraping_data.get("description", "")
+        
+        # Prepare the final code section to avoid f-string backslash issues
+        final_code_section = ""
+        if final_code:
+            truncated_code = final_code[:1000]
+            if len(final_code) > 1000:
+                truncated_code += "..."
+            final_code_section = f"FINAL CODE SOLUTION:\n{truncated_code}"
+        
+        evaluation_prompt = f"""
+INTERVIEW EVALUATION:
+
+Please provide a comprehensive evaluation of this coding interview session.
+
+Session: {problem_title if problem_title else 'LeetCode Problem'} | Duration: {session_duration if session_duration else 'Completed'}
+
+{final_code_section}
+
+Evaluate:
+1. Problem-solving approach and methodology
+2. Code quality, structure, and correctness  
+3. Communication and explanation skills
+4. Technical understanding (complexity, edge cases)
+5. Overall strengths and improvement areas
+
+Provide specific feedback and an overall rating. Keep response concise but thorough.
+        """
+        
+        await send_text_message(connection, evaluation_prompt.strip(), session_id)
+        
+        # Give time for the evaluation response to be processed and sent
+        await asyncio.sleep(8)
+        
+        logger.info(f"Session evaluation completed for {session_id[:8]}")
+        
+    except Exception as e:
+        logger.error(f"Failed to trigger evaluation for session {session_id}: {e}")
+        raise

@@ -92,21 +92,40 @@ export class ChromeExtensionBridge {
      * Broadcast connection state to all LeetCode tabs
      */
     broadcastConnectionState(state, sessionId = null, isConnected = false, sessionActive = false) {
-        if (typeof chrome !== 'undefined' && chrome.tabs) {
-            chrome.tabs.query({ url: LEETCODE_URLS }, (tabs) => {
-                tabs.forEach(tab => {
-                    chrome.tabs.sendMessage(tab.id, {
-                        action: EXTENSION_ACTIONS.VOICE_CONNECTION_STATE_CHANGED,
-                        state: state,
-                        sessionId: sessionId,
-                        isConnected: isConnected,
-                        sessionActive: sessionActive
-                    }).catch(error => {
-                        // Ignore errors for tabs that don't have content script loaded
-                        console.log(`Could not send message to tab ${tab.id}:`, error.message);
+        return new Promise((resolve) => {
+            if (typeof chrome !== 'undefined' && chrome.tabs) {
+                chrome.tabs.query({ url: LEETCODE_URLS }, (tabs) => {
+                    if (tabs.length === 0) {
+                        resolve();
+                        return;
+                    }
+                    
+                    let completedTabs = 0;
+                    const totalTabs = tabs.length;
+                    
+                    tabs.forEach(tab => {
+                        chrome.tabs.sendMessage(tab.id, {
+                            action: EXTENSION_ACTIONS.VOICE_CONNECTION_STATE_CHANGED,
+                            state: state,
+                            sessionId: sessionId,
+                            isConnected: isConnected,
+                            sessionActive: sessionActive
+                        }).catch(error => {
+                            // Silently handle message channel errors - they're not critical
+                            if (!error.message.includes('message channel closed')) {
+                                console.log(`Could not send message to tab ${tab.id}:`, error.message);
+                            }
+                        }).finally(() => {
+                            completedTabs++;
+                            if (completedTabs === totalTabs) {
+                                resolve();
+                            }
+                        });
                     });
                 });
-            });
-        }
+            } else {
+                resolve();
+            }
+        });
     }
 }

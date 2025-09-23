@@ -120,16 +120,20 @@ class LeetSpeakVoiceClient {
             // Stop audio recording and playback
             this.audioManager.stopAll();
             
-            // Close WebSocket connection
-            this.webSocketManager.disconnect();
-            
-            // Stop backend session
+            // Stop backend session FIRST (this triggers evaluation and waits for completion)
             await this.sessionManager.stopSession();
+            
+            // Backend now waits for actual completion, so we can disconnect immediately
+            this.webSocketManager.disconnect();
             
             this.isConnected = false;
             this.transcriptManager.reset();
             
-            this.extensionBridge.broadcastConnectionState(CONNECTION_STATES.SESSION_STOPPED);
+            // Add a small delay before broadcasting to ensure message channels are stable
+            setTimeout(async () => {
+                await this.extensionBridge.broadcastConnectionState(CONNECTION_STATES.SESSION_STOPPED);
+            }, 50);
+            
             this.updateStatus(CONNECTION_STATES.DISCONNECTED, 'Voice chat stopped');
             
             // Reset the flag after a short delay

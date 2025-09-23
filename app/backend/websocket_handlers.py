@@ -5,6 +5,7 @@ Handles extension communication and scraping data
 import asyncio
 import json
 import logging
+from datetime import datetime
 from fastapi import WebSocket, WebSocketDisconnect
 
 logger = logging.getLogger(__name__)
@@ -213,15 +214,21 @@ async def relay_azure_messages(session_id: str, websocket: WebSocket, session_ma
         azure_conn = session_manager.azure_connections[session_id]
         
         while True:
-            azure_message = await azure_conn.recv()
-            if azure_message:
-                # Forward Azure message to extension
-                await websocket.send_text(azure_message)
-            else:
-                await asyncio.sleep(0.1)
+            try:
+                azure_message = await azure_conn.recv()
+                if azure_message:
+                    # Forward Azure message to extension
+                    await websocket.send_text(azure_message)
+                else:
+                    await asyncio.sleep(0.1)
+            except Exception as send_error:
+                # This will catch WebSocket send errors after disconnection
+                logger.info(f"WebSocket send failed for {session_id[:8]}, stopping relay: {send_error}")
+                break
                 
     except Exception as e:
         logger.error(f"Error relaying Azure messages for {session_id[:8]}: {e}")
     finally:
+        logger.info(f"Cleaning up relay task for {session_id[:8]}")
         if hasattr(app_state, 'relay_tasks') and session_id in app_state.relay_tasks:
             del app_state.relay_tasks[session_id]

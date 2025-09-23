@@ -20,7 +20,7 @@ from dotenv import load_dotenv
 # Import our modules
 from models import SessionCreateRequest, SessionResponse, Session
 from session_manager import SessionManager
-from azure_client import AzureVoiceLive, send_session_configuration
+from azure_client import AzureVoiceLive, send_session_configuration, trigger_session_evaluation
 from websocket_handlers import (
     handle_extension_websocket, 
     handle_scraping_websocket,
@@ -197,9 +197,73 @@ async def stop_session(session_id: str):
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
 
-        # Close Azure connection
+        # Close Azure connection and trigger evaluation
         if session_id in session_manager.azure_connections:
-            await session_manager.azure_connections[session_id].close()
+            connection = session_manager.azure_connections[session_id]
+            try:
+                # Calculate session duration
+                created_at_str = session.get("created_at", "")
+                if created_at_str:
+                    created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
+                    duration = datetime.utcnow() - created_at.replace(tzinfo=None)
+                    duration_str = f"{int(duration.total_seconds() // 60)} minutes"
+                else:
+                    duration_str = "Session completed"
+                
+                # Get current scraping data for context
+                scraping_data = session_manager.scraping_data
+                
+                # Check if WebSocket is still connected for relaying the response
+                websocket = session_manager.websocket_connections.get(session_id)
+                if websocket:
+                    # WebSocket still connected - trigger evaluation and wait for actual completion
+                    logger.info(f"Triggering session evaluation for {session_id[:8]} with WebSocket relay")
+                    await trigger_session_evaluation(
+                        connection, 
+                        session_id, 
+                        final_code=scraping_data.get("editor", ""), 
+                        session_duration=duration_str,
+                        scraping_data=scraping_data
+                    )
+                    
+                    # No arbitrary delay - the trigger_session_evaluation now waits for actual completion
+                    logger.info(f"Evaluation completed for {session_id[:8]}, proceeding with cleanup")
+                    
+                    # Now clean up relay task
+                    if hasattr(app.state, 'relay_tasks') and session_id in app.state.relay_tasks:
+                        try:
+                            app.state.relay_tasks[session_id].cancel()
+                            del app.state.relay_tasks[session_id]
+                            logger.info(f"Relay task cancelled for {session_id[:8]} after evaluation")
+                        except Exception as cleanup_error:
+                            logger.warning(f"Error cleaning up relay task for {session_id[:8]}: {cleanup_error}")
+                else:
+                    # WebSocket already disconnected - just trigger evaluation (no relay possible)
+                    logger.info(f"Triggering session evaluation for {session_id[:8]} without WebSocket relay")
+                    await trigger_session_evaluation(
+                        connection, 
+                        session_id, 
+                        final_code=scraping_data.get("editor", ""), 
+                        session_duration=duration_str,
+                        scraping_data=scraping_data
+                    )
+                    await asyncio.sleep(1)
+                
+            except Exception as eval_error:
+                logger.error(f"Error during session evaluation for {session_id[:8]}: {eval_error}")
+                # Continue with session cleanup even if evaluation fails
+            
+            # Close Azure connection
+            await connection.close()
+            
+        # Clean up any remaining relay tasks
+        if hasattr(app.state, 'relay_tasks') and session_id in app.state.relay_tasks:
+            try:
+                app.state.relay_tasks[session_id].cancel()
+                del app.state.relay_tasks[session_id]
+                logger.info(f"Final relay task cleanup for {session_id[:8]}")
+            except Exception as cleanup_error:
+                logger.warning(f"Error in final relay task cleanup for {session_id[:8]}: {cleanup_error}")
             
         session_manager.delete_session(session_id)
         

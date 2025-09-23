@@ -130,6 +130,9 @@ export class TranscriptManager {
      * Reset transcript state
      */
     reset() {
+        // Before clearing, flush any pending responses that haven't been completed
+        this.flushPendingResponses();
+        
         this.currentResponse = '';
         this.responseTranscripts.clear();
         this.completedResponses.clear();
@@ -137,5 +140,27 @@ export class TranscriptManager {
         this.activeResponseId = null;
         this.isCancelling = false;
         this.lastBargeInTime = 0;
+    }
+    
+    /**
+     * Flush any pending responses before reset
+     */
+    flushPendingResponses() {
+        this.responseTranscripts.forEach((transcript, responseId) => {
+            if (!this.completedResponses.has(responseId) && transcript.trim()) {
+                console.log(`🔄 Flushing pending response: ${responseId} (${transcript.length} chars)`);
+                this.onMessage?.('AI', transcript, 'ai');
+                this.onTranscript?.({ type: 'ai', text: transcript });
+            }
+        });
+        
+        // Also check currentResponse if it exists
+        if (this.currentResponse && this.currentResponse.trim()) {
+            console.log(`🔄 Flushing current response (${this.currentResponse.length} chars)`);
+            this.onMessage?.('AI', this.currentResponse, 'ai');
+            this.onTranscript?.({ type: 'ai', text: this.currentResponse });
+        }
+        
+        this.showTyping(false);
     }
 }
