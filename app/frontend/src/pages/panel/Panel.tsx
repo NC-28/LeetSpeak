@@ -1,5 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
-import MarkdownMessage from './MarkdownMessage';
+import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
+
+// Lazy load the heavy MarkdownMessage component to reduce initial bundle size
+const MarkdownMessage = lazy(() => import('./MarkdownMessage'));
 
 // Type for voice client to avoid module resolution issues
 declare class LeetSpeakVoiceClient {
@@ -389,10 +391,12 @@ export default function Panel() {
                     </div>
                   )}
                   <div className="ml-10">
-                    <MarkdownMessage 
-                      content={msg.message}
-                      className="text-sm leading-relaxed text-gray-700"
-                    />
+                    <Suspense fallback={<div className="text-sm text-gray-500">Loading message...</div>}>
+                      <MarkdownMessage 
+                        content={msg.message}
+                        className="text-sm leading-relaxed text-gray-700"
+                      />
+                    </Suspense>
                   </div>
                 </div>
               </div>
