@@ -189,73 +189,83 @@ async def start_session(session_id: str, request: SessionCreateRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/api/sessions/{session_id}/stop")
-async def stop_session(session_id: str):
-    """Stop a voice chat session"""
+@app.post("/api/sessions/{session_id}/trigger-evaluation")
+async def trigger_evaluation(session_id: str):
+    """Trigger evaluation without stopping the session"""
     try:
         session = session_manager.get_session(session_id)
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
 
-        # Close Azure connection and trigger evaluation
+        # Check if Azure connection exists
+        if session_id in session_manager.azure_connections:
+            connection = session_manager.azure_connections[session_id]
+            
+            # Calculate session duration
+            created_at_str = session.get("created_at", "")
+            if created_at_str:
+                created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
+                duration = datetime.utcnow() - created_at.replace(tzinfo=None)
+                duration_str = f"{int(duration.total_seconds() // 60)} minutes"
+            else:
+                duration_str = "Session completed"
+            
+            # Get current scraping data for context
+            scraping_data = session_manager.scraping_data
+            
+            # Trigger evaluation but keep session alive
+            logger.info(f"Triggering evaluation for {session_id[:8]} (keeping session alive)")
+            await trigger_session_evaluation(
+                connection, 
+                session_id, 
+                final_code=scraping_data.get("editor", ""), 
+                session_duration=duration_str,
+                scraping_data=scraping_data
+            )
+            
+            logger.info(f"Evaluation triggered for {session_id[:8]}")
+            return {"status": "evaluation_triggered", "message": "Evaluation started"}
+        else:
+            raise HTTPException(status_code=404, detail="Azure connection not found")
+        
+    except Exception as e:
+        logger.error(f"Error triggering evaluation for session {session_id[:8]}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/sessions/{session_id}/stop")
+async def stop_session(session_id: str):
+    """Stop a voice chat session (evaluation should already be completed)"""
+    try:
+        session = session_manager.get_session(session_id)
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        # Close Azure connection (evaluation should already be completed via trigger-evaluation)
         if session_id in session_manager.azure_connections:
             connection = session_manager.azure_connections[session_id]
             try:
-                # Calculate session duration
-                created_at_str = session.get("created_at", "")
-                if created_at_str:
-                    created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
-                    duration = datetime.utcnow() - created_at.replace(tzinfo=None)
-                    duration_str = f"{int(duration.total_seconds() // 60)} minutes"
-                else:
-                    duration_str = "Session completed"
+                logger.info(f"Closing Azure connection for {session_id[:8]} (evaluation already completed)")
                 
-                # Get current scraping data for context
-                scraping_data = session_manager.scraping_data
+                # Clean up relay task
+                if hasattr(app.state, 'relay_tasks') and session_id in app.state.relay_tasks:
+                    try:
+                        app.state.relay_tasks[session_id].cancel()
+                        del app.state.relay_tasks[session_id]
+                        logger.info(f"Relay task cancelled for {session_id[:8]}")
+                    except Exception as cleanup_error:
+                        logger.warning(f"Error cleaning up relay task for {session_id[:8]}: {cleanup_error}")
                 
-                # Check if WebSocket is still connected for relaying the response
-                websocket = session_manager.websocket_connections.get(session_id)
-                if websocket:
-                    # WebSocket still connected - trigger evaluation and wait for actual completion
-                    logger.info(f"Triggering session evaluation for {session_id[:8]} with WebSocket relay")
-                    await trigger_session_evaluation(
-                        connection, 
-                        session_id, 
-                        final_code=scraping_data.get("editor", ""), 
-                        session_duration=duration_str,
-                        scraping_data=scraping_data
-                    )
-                    
-                    # No arbitrary delay - the trigger_session_evaluation now waits for actual completion
-                    logger.info(f"Evaluation completed for {session_id[:8]}, proceeding with cleanup")
-                    
-                    # Now clean up relay task
-                    if hasattr(app.state, 'relay_tasks') and session_id in app.state.relay_tasks:
-                        try:
-                            app.state.relay_tasks[session_id].cancel()
-                            del app.state.relay_tasks[session_id]
-                            logger.info(f"Relay task cancelled for {session_id[:8]} after evaluation")
-                        except Exception as cleanup_error:
-                            logger.warning(f"Error cleaning up relay task for {session_id[:8]}: {cleanup_error}")
-                else:
-                    # WebSocket already disconnected - just trigger evaluation (no relay possible)
-                    logger.info(f"Triggering session evaluation for {session_id[:8]} without WebSocket relay")
-                    await trigger_session_evaluation(
-                        connection, 
-                        session_id, 
-                        final_code=scraping_data.get("editor", ""), 
-                        session_duration=duration_str,
-                        scraping_data=scraping_data
-                    )
-                    await asyncio.sleep(1)
+                # Close Azure connection
+                await connection.close()
                 
-            except Exception as eval_error:
-                logger.error(f"Error during session evaluation for {session_id[:8]}: {eval_error}")
-                # Continue with session cleanup even if evaluation fails
+            except Exception as close_error:
+                logger.error(f"Error closing Azure connection for {session_id[:8]}: {close_error}")
+                # Continue with session cleanup even if connection close fails
             
-            # Close Azure connection
-            await connection.close()
-            
+            # Remove from azure connections
+            session_manager.azure_connections.pop(session_id, None)
+        
         # Clean up any remaining relay tasks
         if hasattr(app.state, 'relay_tasks') and session_id in app.state.relay_tasks:
             try:

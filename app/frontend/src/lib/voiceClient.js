@@ -15,6 +15,9 @@ class LeetSpeakVoiceClient {
         // Core state
         this.isConnected = false;
         this.isIntentionallyStopping = false;
+        this.isWaitingForEvaluation = false;
+        this.evaluationTriggered = false;
+        this.shutdownResolve = null;
         
         // Initialize managers
         this.audioManager = new AudioManager(this.handleAudioData.bind(this));
@@ -117,34 +120,98 @@ class LeetSpeakVoiceClient {
             // Mark that we're intentionally stopping
             this.isIntentionallyStopping = true;
             
-            // Stop audio recording and playback
+            // Stop audio recording and playback immediately (but let text continue)
             this.audioManager.stopAll();
             
-            // Stop backend session FIRST (this triggers evaluation and waits for completion)
+            // Check if there are any active responses currently
+            const hasActiveResponse = this.transcriptManager.activeResponseId !== null;
+            console.log(`🔄 Shutdown initiated, active response: ${hasActiveResponse ? this.transcriptManager.activeResponseId : 'none'}`);
+            
+            // Set up waiting mechanism for current response completion + evaluation
+            this.isWaitingForEvaluation = true;
+            this.evaluationTriggered = false;
+            const completionPromise = new Promise((resolve) => {
+                this.shutdownResolve = resolve;
+            });
+            
+            if (hasActiveResponse) {
+                // Case 1: There's an active response - wait for it to complete first
+                console.log('🔄 Waiting for active response to complete before triggering evaluation...');
+                // The RESPONSE_AUDIO_TRANSCRIPT_DONE handler will detect this and trigger evaluation
+                
+                // Wait for both current response completion AND evaluation
+                await completionPromise;
+                console.log('✅ Active response and evaluation completed');
+                
+            } else {
+                // Case 2: No active response - trigger evaluation immediately
+                console.log('🔄 No active response, triggering evaluation immediately...');
+                
+                try {
+                    this.evaluationTriggered = true;
+                    await fetch(`${this.sessionManager.backendUrl}/api/sessions/${this.sessionManager.sessionId}/trigger-evaluation`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    console.log('✅ Evaluation trigger sent');
+                    
+                    // Check if evaluation started
+                    if (this.transcriptManager.activeResponseId === null) {
+                        console.log('🔄 No evaluation response started, proceeding immediately');
+                        this.isWaitingForEvaluation = false;
+                        this.shutdownResolve();
+                        this.shutdownResolve = null;
+                    } else {
+                        // Wait for evaluation to complete
+                        await completionPromise;
+                        console.log('✅ Evaluation completed');
+                    }
+                    
+                } catch (fetchError) {
+                    console.warn('⚠️ Failed to trigger evaluation:', fetchError);
+                    // If triggering fails, proceed immediately
+                    if (this.isWaitingForEvaluation) {
+                        this.isWaitingForEvaluation = false;
+                        this.shutdownResolve();
+                        this.shutdownResolve = null;
+                    }
+                }
+            }
+            
+            // NOW we can stop the backend session since all responses are complete
+            console.log('🔄 Stopping backend session after all responses completed...');
             await this.sessionManager.stopSession();
+            console.log('✅ Backend session stopped');
             
-            // Backend now waits for actual completion, so we can disconnect immediately
+            // Now we can safely disconnect and clean up
             this.webSocketManager.disconnect();
-            
             this.isConnected = false;
-            this.transcriptManager.reset();
             
-            // Add a small delay before broadcasting to ensure message channels are stable
-            setTimeout(async () => {
-                await this.extensionBridge.broadcastConnectionState(CONNECTION_STATES.SESSION_STOPPED);
-            }, 50);
+            // Clear transcript state
+            this.transcriptManager.currentResponse = '';
+            this.transcriptManager.responseTranscripts.clear();
+            this.transcriptManager.completedResponses.clear();
+            this.transcriptManager.cancelledResponses.clear();
+            this.transcriptManager.activeResponseId = null;
+            this.transcriptManager.isCancelling = false;
+            this.transcriptManager.lastBargeInTime = 0;
+            this.transcriptManager.showTyping(false);
+            
+            // Broadcast connection state change
+            await this.extensionBridge.broadcastConnectionState(CONNECTION_STATES.SESSION_STOPPED);
             
             this.updateStatus(CONNECTION_STATES.DISCONNECTED, 'Voice chat stopped');
             
-            // Reset the flag after a short delay
-            setTimeout(() => {
-                this.isIntentionallyStopping = false;
-            }, 100);
+            // Reset the flag
+            this.isIntentionallyStopping = false;
             
             return { status: 'stopped' };
             
         } catch (error) {
             this.isIntentionallyStopping = false;
+            this.isWaitingForEvaluation = false;
+            this.evaluationTriggered = false;
+            this.shutdownResolve = null;
             this.updateStatus(CONNECTION_STATES.ERROR, `Error stopping: ${error.message}`);
             throw error;
         }
@@ -171,6 +238,12 @@ class LeetSpeakVoiceClient {
                     (event.response && event.response.id) || event.response_id || event.item_id
                 );
                 this.audioManager.clearQueues();
+                
+                // If we're waiting for evaluation and a new response starts, this is likely the evaluation
+                if (this.isWaitingForEvaluation) {
+                    console.log('🔄 New response started during shutdown - likely evaluation');
+                    // The evaluation will complete naturally and trigger the shutdown via RESPONSE_AUDIO_TRANSCRIPT_DONE
+                }
                 break;
                 
             case MESSAGE_TYPES.INPUT_AUDIO_TRANSCRIPTION_COMPLETED:
@@ -188,6 +261,50 @@ class LeetSpeakVoiceClient {
                 this.transcriptManager.handleResponseComplete(
                     event.response_id || event.item_id
                 );
+                
+                // Handle shutdown sequence when response completes
+                if (this.isWaitingForEvaluation && this.shutdownResolve) {
+                    if (this.transcriptManager.activeResponseId === null && !this.evaluationTriggered) {
+                        // No more active responses and evaluation hasn't been triggered yet
+                        console.log('✅ Response completed during shutdown, checking for evaluation need...');
+                        
+                        // Trigger evaluation now
+                        console.log('🔄 Triggering evaluation after response completion...');
+                        this.evaluationTriggered = true;
+                        
+                        // Use a promise to handle the async operation
+                        fetch(`${this.sessionManager.backendUrl}/api/sessions/${this.sessionManager.sessionId}/trigger-evaluation`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' }
+                        }).then(() => {
+                            console.log('✅ Evaluation trigger sent after response completion');
+                            
+                            // Check if evaluation started
+                            if (this.transcriptManager.activeResponseId === null && this.isWaitingForEvaluation) {
+                                console.log('🔄 No evaluation response started, proceeding with shutdown');
+                                this.isWaitingForEvaluation = false;
+                                this.shutdownResolve();
+                                this.shutdownResolve = null;
+                            }
+                            // Otherwise, wait for the evaluation response to complete naturally
+                            
+                        }).catch((fetchError) => {
+                            console.warn('⚠️ Failed to trigger evaluation after response:', fetchError);
+                            // If triggering fails, proceed with shutdown
+                            if (this.isWaitingForEvaluation) {
+                                this.isWaitingForEvaluation = false;
+                                this.shutdownResolve();
+                                this.shutdownResolve = null;
+                            }
+                        });
+                    } else if (this.transcriptManager.activeResponseId === null && this.evaluationTriggered) {
+                        // This is the evaluation response completing
+                        console.log('✅ Evaluation completed, proceeding with shutdown');
+                        this.isWaitingForEvaluation = false;
+                        this.shutdownResolve();
+                        this.shutdownResolve = null;
+                    }
+                }
                 break;
                 
             case MESSAGE_TYPES.AUDIO_DELTA:

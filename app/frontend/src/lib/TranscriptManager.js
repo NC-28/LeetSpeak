@@ -92,9 +92,17 @@ export class TranscriptManager {
             
             const finalTranscript = this.responseTranscripts.get(responseId) || this.currentResponse;
             if (finalTranscript) {
+                console.log(`✅ Response ${responseId} completed naturally (${finalTranscript.length} chars)`);
                 this.onMessage?.('', finalTranscript, 'ai');
                 this.onTranscript?.({ type: 'ai', text: finalTranscript });
             }
+        } else if (responseId && this.completedResponses.has(responseId)) {
+            // Response already completed (likely flushed during graceful shutdown)
+            console.log(`⚠️ Response ${responseId} already completed, skipping duplicate`);
+            if (this.activeResponseId === responseId) {
+                this.activeResponseId = null;
+            }
+            this.showTyping(false);
         }
     }
 
@@ -130,9 +138,6 @@ export class TranscriptManager {
      * Reset transcript state
      */
     reset() {
-        // Before clearing, flush any pending responses that haven't been completed
-        this.flushPendingResponses();
-        
         this.currentResponse = '';
         this.responseTranscripts.clear();
         this.completedResponses.clear();
@@ -141,26 +146,5 @@ export class TranscriptManager {
         this.isCancelling = false;
         this.lastBargeInTime = 0;
     }
-    
-    /**
-     * Flush any pending responses before reset
-     */
-    flushPendingResponses() {
-        this.responseTranscripts.forEach((transcript, responseId) => {
-            if (!this.completedResponses.has(responseId) && transcript.trim()) {
-                console.log(`🔄 Flushing pending response: ${responseId} (${transcript.length} chars)`);
-                this.onMessage?.('AI', transcript, 'ai');
-                this.onTranscript?.({ type: 'ai', text: transcript });
-            }
-        });
-        
-        // Also check currentResponse if it exists
-        if (this.currentResponse && this.currentResponse.trim()) {
-            console.log(`🔄 Flushing current response (${this.currentResponse.length} chars)`);
-            this.onMessage?.('AI', this.currentResponse, 'ai');
-            this.onTranscript?.({ type: 'ai', text: this.currentResponse });
-        }
-        
-        this.showTyping(false);
-    }
+
 }
