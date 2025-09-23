@@ -29,6 +29,7 @@ export default function Popup() {
   const [status, setStatus] = useState<StatusInfo>({ status: 'disconnected', text: 'Not connected' });
   const [messages, setMessages] = useState<Message[]>([]);
   const [isTyping, setIsTyping] = useState(false);
+  const [isEvaluationTyping, setIsEvaluationTyping] = useState(false);
   const [config, setConfig] = useState({
     endpoint: '',
     apiKey: '',
@@ -59,7 +60,7 @@ export default function Popup() {
   
   useEffect(() => {
     scrollToBottom();
-  }, [messages, isTyping]);
+  }, [messages, isTyping, isEvaluationTyping]);
   
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -86,9 +87,14 @@ export default function Popup() {
       voiceClientRef.current.onMessage = (msg: any) => {
         if (msg.type === 'typing') {
           setIsTyping(true);
+          setIsEvaluationTyping(false);
+        } else if (msg.type === 'typing-evaluation') {
+          setIsEvaluationTyping(true);
+          setIsTyping(false);
         } else if (msg.type === 'typing-hide') {
           setIsTyping(false);
-        } else if (msg.type !== 'system' || msg.message !== 'typing') {
+          setIsEvaluationTyping(false);
+        } else if (msg.type !== 'system' || (msg.message !== 'typing' && msg.message !== 'typing-evaluation')) {
           addMessage(msg.sender, msg.message, msg.type);
         }
       };
@@ -255,11 +261,11 @@ export default function Popup() {
           ))
         )}
         
-        {isTyping && (
+        {(isTyping || isEvaluationTyping) && (
           <div className="bg-green-100 border-l-4 border-green-400 mr-4 p-2 rounded">
             <div className="font-semibold text-xs mb-1">🤖 AI</div>
             <div className="text-sm flex items-center">
-              <span>Thinking</span>
+              <span>{isEvaluationTyping ? 'Generating evaluation' : 'Thinking'}</span>
               <div className="ml-2 flex space-x-1">
                 <div className="w-1 h-1 bg-green-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
                 <div className="w-1 h-1 bg-green-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>

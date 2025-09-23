@@ -46,8 +46,8 @@ export class TranscriptManager {
     /**
      * Start new response
      */
-    startResponse(responseId = null) {
-        this.showTyping(true);
+    startResponse(responseId = null, isEvaluation = false) {
+        this.showTyping(true, isEvaluation);
         this.currentResponse = '';
         this.isCancelling = false;
         this.activeResponseId = responseId;
@@ -129,9 +129,13 @@ export class TranscriptManager {
     /**
      * Show/hide typing indicator
      */
-    showTyping(show) {
-        console.log(`Typing indicator: ${show ? 'show' : 'hide'}`);
-        this.onMessage?.('System', 'typing', show ? 'typing' : 'typing-hide');
+    showTyping(show, isEvaluation = false) {
+        console.log(`Typing indicator: ${show ? 'show' : 'hide'}${isEvaluation ? ' (evaluation)' : ''}`);
+        if (show) {
+            this.onMessage?.('System', isEvaluation ? 'typing-evaluation' : 'typing', isEvaluation ? 'typing-evaluation' : 'typing');
+        } else {
+            this.onMessage?.('System', 'typing', 'typing-hide');
+        }
     }
 
     /**

@@ -42,3 +42,106 @@ body {
 .animate-fade-in {
   animation: fadeIn 0.3s ease-out;
 }
+
+/* Markdown content styling */
+.markdown-content {
+  line-height: 1.6;
+  color: #374151;
+}
+
+.markdown-content p:last-child {
+  margin-bottom: 0;
+}
+
+.markdown-content pre {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  border-radius: 8px;
+  overflow: auto;
+  max-width: 100%;
+}
+
+.markdown-content code {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.875rem;
+}
+
+.markdown-content blockquote {
+  margin: 0.75rem 0;
+}
+
+.markdown-content table {
+  font-size: 0.875rem;
+}
+
+.markdown-content ul ul,
+.markdown-content ol ol,
+.markdown-content ul ol,
+.markdown-content ol ul {
+  margin-top: 0.25rem;
+  margin-bottom: 0.25rem;
+}
+
+/* Syntax highlighting adjustments */
+.hljs {
+  background: #1f2937 !important;
+  color: #f9fafb !important;
+  border-radius: 8px;
+  padding: 1rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+/* Override highlight.js theme colors for better contrast */
+.hljs-comment,
+.hljs-quote {
+  color: #9ca3af !important;
+  font-style: italic;
+}
+
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-literal,
+.hljs-section,
+.hljs-link {
+  color: #60a5fa !important;
+}
+
+.hljs-string,
+.hljs-title,
+.hljs-name,
+.hljs-type,
+.hljs-attribute,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-built_in,
+.hljs-builtin-name {
+  color: #34d399 !important;
+}
+
+.hljs-number,
+.hljs-class,
+.hljs-function {
+  color: #fbbf24 !important;
+}
+
+.hljs-meta,
+.hljs-tag {
+  color: #f87171 !important;
+}
+
+.hljs-variable,
+.hljs-template-variable,
+.hljs-class .hljs-title,
+.hljs-type .hljs-title {
+  color: #c084fc !important;
+}
+
+.hljs-emphasis {
+  font-style: italic;
+}
+
+.hljs-strong {
+  font-weight: bold;
+}

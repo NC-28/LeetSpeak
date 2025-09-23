@@ -234,8 +234,12 @@ class LeetSpeakVoiceClient {
                 break;
                 
             case MESSAGE_TYPES.RESPONSE_CREATED:
+                // Check if this is an evaluation response
+                const isEvaluation = this.isWaitingForEvaluation || this.evaluationTriggered;
+                
                 this.transcriptManager.startResponse(
-                    (event.response && event.response.id) || event.response_id || event.item_id
+                    (event.response && event.response.id) || event.response_id || event.item_id,
+                    isEvaluation
                 );
                 this.audioManager.clearQueues();
                 

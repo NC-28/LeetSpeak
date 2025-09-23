@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import MarkdownMessage from './MarkdownMessage';
 
 // Type for voice client to avoid module resolution issues
 declare class LeetSpeakVoiceClient {
@@ -30,6 +31,7 @@ export default function Panel() {
   const [status, setStatus] = useState<StatusInfo>({ status: 'disconnected', text: 'Not connected' });
   const [messages, setMessages] = useState<Message[]>([]);
   const [isTyping, setIsTyping] = useState(false);
+  const [isEvaluationTyping, setIsEvaluationTyping] = useState(false);
   const [config, setConfig] = useState({
     endpoint: '',
     apiKey: '',
@@ -60,7 +62,7 @@ export default function Panel() {
   
   useEffect(() => {
     scrollToBottom();
-  }, [messages, isTyping]);
+  }, [messages, isTyping, isEvaluationTyping]);
   
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -84,9 +86,14 @@ export default function Panel() {
       voiceClientRef.current.onMessage = (msg: any) => {
         if (msg.type === 'typing') {
           setIsTyping(true);
+          setIsEvaluationTyping(false);
+        } else if (msg.type === 'typing-evaluation') {
+          setIsEvaluationTyping(true);
+          setIsTyping(false);
         } else if (msg.type === 'typing-hide') {
           setIsTyping(false);
-        } else if (msg.type !== 'system' || msg.message !== 'typing') {
+          setIsEvaluationTyping(false);
+        } else if (msg.type !== 'system' || (msg.message !== 'typing' && msg.message !== 'typing-evaluation')) {
           addMessage(msg.sender, msg.message, msg.type);
         }
       };
@@ -381,14 +388,17 @@ export default function Panel() {
                       </div>
                     </div>
                   )}
-                  <div className="text-sm leading-relaxed text-gray-700 whitespace-pre-wrap ml-10">
-                    {msg.message}
+                  <div className="ml-10">
+                    <MarkdownMessage 
+                      content={msg.message}
+                      className="text-sm leading-relaxed text-gray-700"
+                    />
                   </div>
                 </div>
               </div>
             ))}
             
-            {isTyping && (
+            {(isTyping || isEvaluationTyping) && (
               <div className="rounded-xl shadow-sm bg-white border border-gray-200">
                 <div className="p-4">
                   <div className="flex items-center space-x-2 mb-3">
@@ -401,7 +411,7 @@ export default function Panel() {
                     </div>
                   </div>
                   <div className="text-sm flex items-center ml-10 text-gray-600">
-                    <span>Thinking about your response</span>
+                    <span>{isEvaluationTyping ? 'Evaluating your interview' : 'Thinking about your response'}</span>
                     <div className="ml-3 flex space-x-1">
                       <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
                       <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
